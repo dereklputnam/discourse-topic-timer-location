@@ -2,18 +2,15 @@ import { apiInitializer } from "discourse/lib/api";
 import TopicTimerInfo from "discourse/components/topic-timer-info";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
-  // ✅ Use settings only inside this function scope (safe!)
   const displayLocation = settings.display_location;
-
   const renderTopTimer = displayLocation === "top" || displayLocation === "both";
   const removeBottomTimer = displayLocation === "top";
 
-  // ✅ Render top timer
   if (renderTopTimer) {
     api.renderInOutlet("topic-above-posts", <template>
       {{#if @outletArgs.model.topic_timer}}
         <div class="custom-topic-timer-top">
-          {{d-icon "clock"}}
+          <span class="timer-icon">🕒</span>
           <TopicTimerInfo
             @topicClosed={{@outletArgs.model.closed}}
             @statusType={{@outletArgs.model.topic_timer.status_type}}
@@ -28,7 +25,6 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     </template>);
   }
 
-  // ✅ Suppress bottom timer if needed
   if (removeBottomTimer) {
     api.modifyClass("component:topic-timer-info", {
       didInsertElement() {
@@ -39,7 +35,6 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     });
   }
 
-  // ✅ Parent category DOM patch
   if (settings.link_to_parent_category) {
     api.onPageChange(() => {
       requestAnimationFrame(() => {
