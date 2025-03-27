@@ -46,7 +46,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       return;
     }
 
-    console.log(`Topic Timer Location: Handling display for category ${categoryId}`);
+    console.log(`Topic Timer Location: Handling display for category ${categoryId} with display location: ${displayLocation}`);
     
     // Original bottom timer
     const bottomTimer = document.querySelector(".topic-status-info .topic-timer-info");
@@ -59,9 +59,13 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         topContainer = document.createElement("div");
         topContainer.className = "custom-topic-timer-top";
         
-        // Insert before the posts
+        // Insert at the correct location
         const postsContainer = document.querySelector(".topic-post");
-        if (postsContainer?.parentNode) {
+        const topicMap = document.querySelector(".topic-map");
+        
+        if (topicMap) {
+          topicMap.parentNode.insertBefore(topContainer, topicMap);
+        } else if (postsContainer?.parentNode) {
           postsContainer.parentNode.insertBefore(topContainer, postsContainer);
         }
       }
@@ -73,9 +77,11 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       topContainer.appendChild(clonedTimer);
     }
     
-    // Handle bottom timer if needed
-    if (removeBottomTimer) {
+    // Handle bottom timer visibility
+    if (displayLocation === "Top") {
       bottomTimer.style.display = "none";
+    } else if (displayLocation === "Both") {
+      bottomTimer.style.display = ""; // Show bottom timer
     }
   };
 
