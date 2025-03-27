@@ -9,17 +9,18 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   if (renderTopTimer) {
     api.renderInOutlet("topic-above-posts", (outletArgs) => {
       const topic = outletArgs?.model;
-      const slug = topic?.category?.slug;
+      const categoryId = topic?.category_id;
 
-      // ✅ If slugs are defined, only render if it's included
+      // ✅ Skip if category filtering is enabled and current category isn't allowed
       if (
-        settings.enabled_category_slugs?.length &&
-        (!slug || !settings.enabled_category_slugs.includes(slug))
+        settings.enabled_category_ids?.length &&
+        (!categoryId || !settings.enabled_category_ids.includes(categoryId))
       ) {
         return;
       }
 
-      if (!topic?.topic_timer) return;
+      const timer = topic?.topic_timer;
+      if (!timer) return;
 
       return (
         <div class="custom-topic-timer-top">
