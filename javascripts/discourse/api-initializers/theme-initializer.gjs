@@ -1,15 +1,17 @@
 import { apiInitializer } from "discourse/lib/api";
+import TopicTimerInfo from "discourse/components/topic-timer-info";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
   const displayLocation = settings.display_location;
-  const renderTop = displayLocation === "Top" || displayLocation === "Both";
-  const removeBottom = displayLocation === "Top";
+  const showTop = displayLocation === "Top" || displayLocation === "Both";
+  const hideBottom = displayLocation === "Top";
 
-  if (renderTop) {
+  if (showTop) {
     api.renderInOutlet("topic-above-posts", (outletArgs) => {
       const topic = outletArgs?.model;
       const categoryId = topic?.category_id;
 
+      // ✅ Filter by category ID if specified
       if (
         settings.enabled_category_ids?.length &&
         (!categoryId || !settings.enabled_category_ids.includes(categoryId))
@@ -17,20 +19,28 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         return;
       }
 
+      // ✅ Use template only if timer exists
       if (!topic?.topic_timer) return;
 
-      return `
+      return api.hbs`
         <div class="custom-topic-timer-top">
-          <topic-timer-info @model={{@model}} />
+          <TopicTimerInfo
+            @topicClosed={{@outletArgs.model.closed}}
+            @statusType={{@outletArgs.model.topic_timer.status_type}}
+            @statusUpdate={{@outletArgs.model.topic_status_update}}
+            @executeAt={{@outletArgs.model.topic_timer.execute_at}}
+            @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
+            @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
+            @categoryId={{@outletArgs.model.topic_timer.category_id}}
+          />
         </div>
       `;
     });
   }
 
-  if (removeBottom) {
+  if (hideBottom) {
     api.modifyClass("component:topic-timer-info", {
       pluginId: "topic-timer-to-top",
-
       didInsertElement() {
         if (!this.element.closest(".custom-topic-timer-top")) {
           this.element.remove();
