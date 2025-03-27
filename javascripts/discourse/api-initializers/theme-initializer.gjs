@@ -6,21 +6,24 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   const hideBottom = displayLocation === "Top";
 
   if (showTop) {
-    api.renderInOutlet("topic-above-posts", <template>
-      {{#if
-        (and
-          @outletArgs.model.topic_timer
-          (or
-            (eq settings.enabled_category_ids.length 0)
-            (includes settings.enabled_category_ids @outletArgs.model.category_id)
-          )
-        )
-      }}
+    api.renderInOutlet("topic-above-posts", (outletArgs) => {
+      const topic = outletArgs?.model;
+      const hasTimer = !!topic?.topic_timer;
+      const categoryId = topic?.category_id;
+      const categoryAllowed =
+        !settings.enabled_category_ids?.length ||
+        settings.enabled_category_ids.includes(categoryId);
+
+      if (!hasTimer || !categoryAllowed) {
+        return;
+      }
+
+      return (
         <div class="custom-topic-timer-top">
           <topic-timer-info />
         </div>
-      {{/if}}
-    </template>);
+      );
+    });
   }
 
   if (hideBottom) {
