@@ -62,7 +62,6 @@ export default apiInitializer("topic-timer-to-top", (api) => {
           if (!parent) return;
 
           categoryLink.textContent = `#${parent.slug}`;
-          categoryLink.setAttribute("href", `/c/${parent.slug}/${parent.id}`);
         });
       });
     });
