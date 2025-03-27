@@ -34,7 +34,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     });
   }
 
-  if (settings.link_to_parent_category) {
+  if (settings.use_parent_for_link) {
     api.onPageChange(() => {
       requestAnimationFrame(() => {
         const allTimers = document.querySelectorAll(".topic-timer-info");
