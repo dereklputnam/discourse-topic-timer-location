@@ -52,36 +52,66 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     const bottomTimer = document.querySelector(".topic-status-info .topic-timer-info");
     if (!bottomTimer) return;
     
-    if (renderTopTimer) {
-      // Create or get top timer container
+    // Explicitly handle display based on setting
+    if (displayLocation === "Top") {
+      // Create top timer
       let topContainer = document.querySelector(".custom-topic-timer-top");
       if (!topContainer) {
         topContainer = document.createElement("div");
         topContainer.className = "custom-topic-timer-top";
         
         // Insert at the correct location
-        const postsContainer = document.querySelector(".topic-post");
-        const topicMap = document.querySelector(".topic-map");
+        const topicArea = document.querySelector(".topic-area");
+        const suggestedTopics = document.querySelector(".suggested-topics");
         
-        if (topicMap) {
-          topicMap.parentNode.insertBefore(topContainer, topicMap);
-        } else if (postsContainer?.parentNode) {
+        if (topicArea && suggestedTopics) {
+          topicArea.insertBefore(topContainer, suggestedTopics);
+        } else {
+          const postsContainer = document.querySelector(".topic-post");
+          if (postsContainer?.parentNode) {
+            postsContainer.parentNode.insertBefore(topContainer, postsContainer);
+          }
+        }
+      }
+      
+      // Clone the timer and add to top
+      const clonedTimer = bottomTimer.cloneNode(true);
+      topContainer.innerHTML = "";
+      topContainer.appendChild(clonedTimer);
+      
+      // Hide the bottom timer
+      bottomTimer.style.display = "none";
+      
+    } else if (displayLocation === "Both") {
+      // Create top timer
+      let topContainer = document.querySelector(".custom-topic-timer-top");
+      if (!topContainer) {
+        topContainer = document.createElement("div");
+        topContainer.className = "custom-topic-timer-top";
+        
+        const postsContainer = document.querySelector(".topic-post");
+        if (postsContainer?.parentNode) {
           postsContainer.parentNode.insertBefore(topContainer, postsContainer);
         }
       }
       
       // Clone the timer and add to top
       const clonedTimer = bottomTimer.cloneNode(true);
-      // Clear the container first
       topContainer.innerHTML = "";
       topContainer.appendChild(clonedTimer);
-    }
-    
-    // Handle bottom timer visibility
-    if (displayLocation === "Top") {
-      bottomTimer.style.display = "none";
-    } else if (displayLocation === "Both") {
-      bottomTimer.style.display = ""; // Show bottom timer
+      
+      // Ensure bottom timer is visible
+      bottomTimer.style.display = "";
+      
+    } else if (displayLocation === "Bottom") {
+      // Remove any top timer if it exists
+      const topContainer = document.querySelector(".custom-topic-timer-top");
+      if (topContainer) {
+        topContainer.remove();
+      }
+      
+      // Ensure bottom timer is visible
+      bottomTimer.style.display = "";
     }
   };
 
