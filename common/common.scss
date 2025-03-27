@@ -19,3 +19,19 @@
     color: var(--primary);
   }
 }
+
+// Styling for the topic list publish time indicator
+.publish-timer {
+  display: inline-block;
+  margin-left: 0.75em;
+  font-size: 0.8em;
+  color: var(--primary-medium);
+  background-color: var(--primary-very-low);
+  border: 1px solid var(--primary-low);
+  border-radius: 0.25em;
+  padding: 0.15em 0.5em;
+  vertical-align: middle;
+  white-space: nowrap;
+  font-weight: normal;
+  line-height: 1.2;
+}
