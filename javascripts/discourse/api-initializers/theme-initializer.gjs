@@ -40,23 +40,31 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     api.onPageChange(() => {
       requestAnimationFrame(() => {
         const allTimers = document.querySelectorAll(".topic-timer-info");
-
+  
         allTimers.forEach((el) => {
           const text = el.textContent?.trim();
           if (!text?.includes("will be published to")) return;
-
+  
           const categoryLink = el.querySelector("a[href*='/c/']");
           if (!categoryLink) return;
-
-          const categorySlug = categoryLink.getAttribute("href").split("/c/")[1]?.split("/")[0];
+  
+          const href = categoryLink.getAttribute("href");
+          const match = href.match(/\/c\/([^\/]+)\/(\d+)/);
+          if (!match) return;
+  
+          const slug = match[1];
+          const id = parseInt(match[2], 10);
           const siteCategories = api.container.lookup("site:main").categories;
-
-          const matched = siteCategories.find((cat) => cat.slug === categorySlug);
-          if (!matched?.parent_category_id) return;
-
-          const parent = siteCategories.find((cat) => cat.id === matched.parent_category_id);
+  
+          const category = siteCategories.find((cat) => cat.id === id && cat.slug === slug);
+          if (!category) return;
+          if (!category.parent_category_id) return;
+  
+          const parent = siteCategories.find((cat) => cat.id === category.parent_category_id);
           if (!parent) return;
-
+  
+          console.log(`[topic-timer-to-top] Replacing category link: ${category.slug} → ${parent.slug}`);
+  
           categoryLink.textContent = `#${parent.slug}`;
           categoryLink.setAttribute("href", `/c/${parent.slug}/${parent.id}`);
         });
