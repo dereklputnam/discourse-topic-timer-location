@@ -6,7 +6,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   const showTop = displayLocation === "top" || displayLocation === "both";
   const removeBottom = displayLocation === "top";
 
-  // ✅ Render timer at the top using outletArgs directly
+  // ✅ Render timer at the top using JSX props (NO @)
   if (showTop) {
     api.renderInOutlet("topic-above-posts", (outletArgs) => {
       const topic = outletArgs?.model;
@@ -15,19 +15,19 @@ export default apiInitializer("topic-timer-to-top", (api) => {
 
       return (
         <TopicTimerInfo
-          @topicClosed={topic.closed}
-          @statusType={timer.status_type}
-          @statusUpdate={topic.topic_status_update}
-          @executeAt={timer.execute_at}
-          @basedOnLastPost={timer.based_on_last_post}
-          @durationMinutes={timer.duration_minutes}
-          @categoryId={timer.category_id}
+          topicClosed={topic.closed}
+          statusType={timer.status_type}
+          statusUpdate={topic.topic_status_update}
+          executeAt={timer.execute_at}
+          basedOnLastPost={timer.based_on_last_post}
+          durationMinutes={timer.duration_minutes}
+          categoryId={timer.category_id}
         />
       );
     });
   }
 
-  // ✅ Remove bottom version if top-only
+  // ✅ Remove bottom timer if top-only
   if (removeBottom) {
     api.modifyClass("component:topic-timer-info", {
       didInsertElement() {
