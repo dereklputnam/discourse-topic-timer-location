@@ -6,19 +6,16 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   const hideBottom = displayLocation === "Top";
 
   if (showTop) {
-    // ✅ No JS logic in template. Render for all — we'll filter via JS after.
+    // ✅ Call directly — do not wrap in return!
     api.renderInOutlet("topic-above-posts", <template>
       {{#if @outletArgs.model.topic_timer}}
-        <div
-          class="custom-topic-timer-top"
-          data-category-id={{@outletArgs.model.category_id}}
-        >
+        <div class="custom-topic-timer-top" data-category-id={{@outletArgs.model.category_id}}>
           <topic-timer-info />
         </div>
       {{/if}}
     </template>);
 
-    // ✅ Remove top if category_id isn't in settings
+    // ✅ Category filtering using DOM after render
     if (settings.enabled_category_ids?.length) {
       api.onPageChange(() => {
         requestAnimationFrame(() => {
