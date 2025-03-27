@@ -1,25 +1,22 @@
 import { apiInitializer } from "discourse/lib/api";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
-  const location = settings.display_location;
-  console.log("[topic-timer-location] display_location setting:", location);
+  const showTop = settings.display_location === "top" || settings.display_location === "both";
+  const hideBottom = settings.display_location === "top";
 
-  // ✅ Show top if location is top or both
-  if (location === "top" || location === "both") {
+  if (showTop) {
     api.renderInOutlet("topic-above-posts", <template>
       {{#if @outletArgs.model.topic_timer}}
         <div class="custom-topic-timer-top">
-          <TopicTimerInfo />
+          <topic-timer-info />
         </div>
       {{/if}}
     </template>);
   }
 
-  // ✅ Remove bottom version if only top selected
-  if (location === "top") {
+  if (hideBottom) {
     api.modifyClass("component:topic-timer-info", {
       didInsertElement() {
-        // Only remove if it's NOT our custom rendered one
         if (!this.element.closest(".custom-topic-timer-top")) {
           this.element.remove();
         }
@@ -27,7 +24,6 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     });
   }
 
-  // ✅ DOM Patch (unchanged)
   if (settings.link_to_parent_category || settings.topic_label_override) {
     api.onPageChange(() => {
       requestAnimationFrame(() => {
