@@ -20,7 +20,7 @@
   }
 }
 
-// Styling for the topic list publish time indicator
+/* Styling for the topic list publish time indicator */
 .publish-timer {
   display: inline-block;
   margin-left: 0.75em;
@@ -34,4 +34,10 @@
   white-space: nowrap;
   font-weight: normal;
   line-height: 1.2;
+}
+
+/* Make sure the timer is properly positioned in topic lists */
+.topic-list-item .link-top-line .publish-timer {
+  position: relative;
+  top: -1px;
 }
