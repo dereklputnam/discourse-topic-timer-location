@@ -5,7 +5,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   const showTop = settings.display_location === "top" || settings.display_location === "both";
   const showBottom = settings.display_location === "bottom" || settings.display_location === "both";
 
-  // Renders the timer at the top of the topic if enabled
+  // Render top version if enabled
   if (showTop) {
     api.renderInOutlet("topic-above-posts", <template>
       {{#if @outletArgs.model.topic_timer}}
@@ -25,7 +25,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     </template>);
   }
 
-  // Hides the bottom version if needed
+  // Hide default timer if needed
   if (!showBottom) {
     api.modifyClass("component:topic-timer-info", {
       didInsertElement() {
@@ -36,62 +36,37 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     });
   }
 
-if (settings.link_to_parent_category) {
-  api.onPageChange(() => {
-    requestAnimationFrame(() => {
-      const allTimers = document.querySelectorAll(".topic-timer-info");
-      console.log(`[topic-timer-to-top] Found ${allTimers.length} .topic-timer-info elements`);
+  // Patch DOM to swap in parent category if setting is on
+  if (settings.link_to_parent_category) {
+    api.onPageChange(() => {
+      requestAnimationFrame(() => {
+        const allTimers = document.querySelectorAll(".topic-timer-info");
+        allTimers.forEach((el, i) => {
+          const text = el.textContent?.trim();
+          if (!text?.includes("will be published to")) return;
 
-      allTimers.forEach((el, i) => {
-        const text = el.textContent?.trim();
-        console.log(`[${i}] Text content:`, text);
+          const categoryLink = el.querySelector("a[href*='/c/']");
+          if (!categoryLink) return;
 
-        if (!text?.includes("will be published to")) {
-          console.log(`[${i}] Skipping: not a publish timer`);
-          return;
-        }
+          const href = categoryLink.getAttribute("href");
+          const match = href.match(/\/c\/(.+)\/(\d+)/);
+          if (!match) return;
 
-        const categoryLink = el.querySelector("a[href*='/c/']");
-        if (!categoryLink) {
-          console.log(`[${i}] Skipping: no category link found`);
-          return;
-        }
+          const fullSlug = match[1];
+          const slug = fullSlug.split("/").pop();
+          const id = parseInt(match[2], 10);
+          const siteCategories = api.container.lookup("site:main").categories;
 
-        const href = categoryLink.getAttribute("href");
-        const match = href.match(/\/c\/(.+)\/(\d+)/);
-        if (!match) {
-          console.log(`[${i}] Skipping: href did not match expected format`, href);
-          return;
-        }
+          const category = siteCategories.find((cat) => cat.id === id && cat.slug === slug);
+          if (!category?.parent_category_id) return;
 
-        const fullSlug = match[1]; // may be "usercube/announcements"
-        const slug = fullSlug.split("/").pop(); // just "announcements"
-        const id = parseInt(match[2], 10);
-        const siteCategories = api.container.lookup("site:main").categories;
+          const parent = siteCategories.find((cat) => cat.id === category.parent_category_id);
+          if (!parent) return;
 
-        const category = siteCategories.find((cat) => cat.id === id && cat.slug === slug);
-        if (!category) {
-          console.log(`[${i}] Skipping: no matching category found`);
-          return;
-        }
-
-        if (!category.parent_category_id) {
-          console.log(`[${i}] Skipping: no parent category for`, category.slug);
-          return;
-        }
-
-        const parent = siteCategories.find((cat) => cat.id === category.parent_category_id);
-        if (!parent) {
-          console.log(`[${i}] Skipping: parent category not found`);
-          return;
-        }
-
-        console.log(`[${i}] ✅ Replacing category link: ${category.slug} → ${parent.slug}`);
-
-        categoryLink.textContent = `#${parent.slug}`;
-        categoryLink.setAttribute("href", `/c/${parent.slug}/${parent.id}`);
+          categoryLink.textContent = `#${parent.slug}`;
+          categoryLink.setAttribute("href", `/c/${parent.slug}/${parent.id}`);
+        });
       });
     });
-  });
-}
+  }
 });
