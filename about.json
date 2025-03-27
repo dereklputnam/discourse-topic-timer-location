@@ -1,0 +1,8 @@
+{
+  "name": "Topic Timer Location",
+  "theme_version": "0.1",
+  "component": true,
+  "about_url": "https://github.com/jtviolet/discourse-topic-timer-location",
+  "license_url": "https://github.com/jtviolet/discourse-topic-timer-location/blob/main/LICENSE",
+  "authors": "Jordan Violet"
+}
