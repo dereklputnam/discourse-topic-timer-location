@@ -11,29 +11,27 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       const topic = outletArgs?.model;
       const categoryId = topic?.category_id;
 
-      // ✅ Filter by category ID if specified
       if (
         settings.enabled_category_ids?.length &&
         (!categoryId || !settings.enabled_category_ids.includes(categoryId))
       ) {
-        return;
+        return null; // ✅ Skip rendering
       }
 
-      // ✅ Use template only if timer exists
-      if (!topic?.topic_timer) return;
-
       return api.hbs`
-        <div class="custom-topic-timer-top">
-          <TopicTimerInfo
-            @topicClosed={{@outletArgs.model.closed}}
-            @statusType={{@outletArgs.model.topic_timer.status_type}}
-            @statusUpdate={{@outletArgs.model.topic_status_update}}
-            @executeAt={{@outletArgs.model.topic_timer.execute_at}}
-            @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
-            @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
-            @categoryId={{@outletArgs.model.topic_timer.category_id}}
-          />
-        </div>
+        {{#if @outletArgs.model.topic_timer}}
+          <div class="custom-topic-timer-top">
+            <TopicTimerInfo
+              @topicClosed={{@outletArgs.model.closed}}
+              @statusType={{@outletArgs.model.topic_timer.status_type}}
+              @statusUpdate={{@outletArgs.model.topic_status_update}}
+              @executeAt={{@outletArgs.model.topic_timer.execute_at}}
+              @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
+              @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
+              @categoryId={{@outletArgs.model.topic_timer.category_id}}
+            />
+          </div>
+        {{/if}}
       `;
     });
   }
