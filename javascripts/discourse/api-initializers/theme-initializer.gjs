@@ -11,40 +11,50 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     ? settings.allowed_category_ids.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id))
     : [];
 
+  // Function to check if a category ID is allowed
+  const isCategoryAllowed = (categoryId) => {
+    // If no category IDs specified, allow all categories
+    if (!allowedCategoryIds.length) return true;
+    
+    // Otherwise, check if the category ID is in the allowed list
+    return allowedCategoryIds.includes(categoryId);
+  };
+
   if (renderTopTimer) {
-    api.renderInOutlet("topic-above-posts", function(outletArgs) {
-      const model = outletArgs.model;
-      
-      // Check if topic timer exists and category is allowed
-      if (model.topic_timer && 
-          (allowedCategoryIds.length === 0 || 
-           allowedCategoryIds.includes(model.category.id))) {
-        return this.renderToString(<div class="custom-topic-timer-top">
+    api.renderInOutlet("topic-above-posts", <template>
+      {{#if @outletArgs.model.topic_timer}}
+        <div class="custom-topic-timer-top">
           <TopicTimerInfo
-            topicClosed={model.closed}
-            statusType={model.topic_timer.status_type}
-            statusUpdate={model.topic_status_update}
-            executeAt={model.topic_timer.execute_at}
-            basedOnLastPost={model.topic_timer.based_on_last_post}
-            durationMinutes={model.topic_timer.duration_minutes}
-            categoryId={model.topic_timer.category_id}
+            @topicClosed={{@outletArgs.model.closed}}
+            @statusType={{@outletArgs.model.topic_timer.status_type}}
+            @statusUpdate={{@outletArgs.model.topic_status_update}}
+            @executeAt={{@outletArgs.model.topic_timer.execute_at}}
+            @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
+            @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
+            @categoryId={{@outletArgs.model.topic_timer.category_id}}
           />
-        </div>);
-      }
-      
-      return null;
-    });
+        </div>
+      {{/if}}
+    </template>);
   }
 
   if (removeBottomTimer) {
     api.modifyClass("component:topic-timer-info", {
       didInsertElement() {
-        const topicCategoryId = this.args.categoryId;
+        // Skip removal if we're in the custom top container
+        if (this.element.closest(".custom-topic-timer-top")) {
+          return;
+        }
         
-        // Only remove if not in top location and not in allowed categories
-        if (!this.element.closest(".custom-topic-timer-top") && 
-            (allowedCategoryIds.length > 0 && 
-             !allowedCategoryIds.includes(topicCategoryId))) {
+        // Get the topic's category ID
+        const topic = this.element.closest(".topic-post")?.dataset?.topicId;
+        if (topic) {
+          const topicModel = api.container.lookup("controller:topic").model;
+          if (topicModel && !isCategoryAllowed(topicModel.category.id)) {
+            this.element.remove();
+          }
+        } else {
+          // If we can't determine the category, default to removing based on settings
           this.element.remove();
         }
       },
