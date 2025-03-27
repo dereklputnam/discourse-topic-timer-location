@@ -5,7 +5,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   const showTop = settings.display_location === "top" || settings.display_location === "both";
   const showBottom = settings.display_location === "bottom" || settings.display_location === "both";
 
-  // Render top version if enabled
+  // TOP TIMER
   if (showTop) {
     api.renderInOutlet("topic-above-posts", <template>
       {{#if @outletArgs.model.topic_timer}}
@@ -25,7 +25,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     </template>);
   }
 
-  // Hide default timer if needed
+  // BOTTOM TIMER SUPPRESSION
   if (!showBottom) {
     api.modifyClass("component:topic-timer-info", {
       didInsertElement() {
@@ -36,11 +36,12 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     });
   }
 
-  // Patch DOM to swap in parent category if setting is on
+  // CATEGORY LINK OVERRIDE
   if (settings.link_to_parent_category) {
     api.onPageChange(() => {
       requestAnimationFrame(() => {
         const allTimers = document.querySelectorAll(".topic-timer-info");
+
         allTimers.forEach((el, i) => {
           const text = el.textContent?.trim();
           if (!text?.includes("will be published to")) return;
