@@ -2,18 +2,19 @@ import { apiInitializer } from "discourse/lib/api";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
   if (["top", "both"].includes(settings.display_location)) {
-    api.renderInOutlet("topic-above-posts", (outletArgs, helper) => {
-      const topic = outletArgs?.model;
-      if (!topic?.topic_timer) return;
-
-      return helper.attach("topic-timer-info", {});
-    });
+    api.renderInOutlet("topic-above-posts", <template>
+      {{#if @outletArgs.model.topic_timer}}
+        <div class="custom-topic-timer-top">
+          <TopicTimerInfo />
+        </div>
+      {{/if}}
+    </template>);
   }
 
   if (settings.display_location === "top") {
     api.modifyClass("component:topic-timer-info", {
       didInsertElement() {
-        if (!this.element.closest("[data-plugin-outlet='topic-above-posts']")) {
+        if (!this.element.closest(".custom-topic-timer-top")) {
           this.element.remove();
         }
       },
