@@ -6,30 +6,31 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   const hideBottom = displayLocation === "Top";
 
   if (showTop) {
-    // ✅ Safe template without logic
+    // ✅ No JS logic in template. Render for all — we'll filter via JS after.
     api.renderInOutlet("topic-above-posts", <template>
       {{#if @outletArgs.model.topic_timer}}
-        <div class="custom-topic-timer-top" data-category-id={{@outletArgs.model.category_id}}>
+        <div
+          class="custom-topic-timer-top"
+          data-category-id={{@outletArgs.model.category_id}}
+        >
           <topic-timer-info />
         </div>
       {{/if}}
     </template>);
 
-    // ✅ Filter logic AFTER render — remove top if category not allowed
-    api.onPageChange(() => {
-      if (!settings.enabled_category_ids?.length) return;
-
-      requestAnimationFrame(() => {
-        document
-          .querySelectorAll(".custom-topic-timer-top")
-          .forEach((el) => {
-            const catId = parseInt(el.dataset.categoryId, 10);
-            if (!settings.enabled_category_ids.includes(catId)) {
+    // ✅ Remove top if category_id isn't in settings
+    if (settings.enabled_category_ids?.length) {
+      api.onPageChange(() => {
+        requestAnimationFrame(() => {
+          document.querySelectorAll(".custom-topic-timer-top").forEach((el) => {
+            const id = parseInt(el.dataset.categoryId, 10);
+            if (!settings.enabled_category_ids.includes(id)) {
               el.remove();
             }
           });
+        });
       });
-    });
+    }
   }
 
   if (hideBottom) {
