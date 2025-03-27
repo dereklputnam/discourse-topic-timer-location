@@ -12,7 +12,8 @@ use_parent_for_link:
   default: false
   description: "Use parent name for category link in topic timer banner?"
 
-enabled_category_slugs:
+enabled_category_ids:
   type: list
   default: ""
-  description: "Only apply this component to topics in these category slugs (one per line)"
+  description: "Only apply to topics in these category IDs (one per line)"
+
