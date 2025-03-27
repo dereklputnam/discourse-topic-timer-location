@@ -1,17 +1,15 @@
 import { apiInitializer } from "discourse/lib/api";
-import TopicTimerInfo from "discourse/components/topic-timer-info";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
   const displayLocation = settings.display_location;
-  const renderTopTimer = displayLocation === "Top" || displayLocation === "Both";
-  const removeBottomTimer = displayLocation === "Top";
+  const renderTop = displayLocation === "Top" || displayLocation === "Both";
+  const removeBottom = displayLocation === "Top";
 
-  if (renderTopTimer) {
+  if (renderTop) {
     api.renderInOutlet("topic-above-posts", (outletArgs) => {
       const topic = outletArgs?.model;
       const categoryId = topic?.category_id;
 
-      // ✅ Skip if category filtering is enabled and current category isn't allowed
       if (
         settings.enabled_category_ids?.length &&
         (!categoryId || !settings.enabled_category_ids.includes(categoryId))
@@ -19,26 +17,17 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         return;
       }
 
-      const timer = topic?.topic_timer;
-      if (!timer) return;
+      if (!topic?.topic_timer) return;
 
-      return (
+      return `
         <div class="custom-topic-timer-top">
-          <TopicTimerInfo
-            @topicClosed={{@outletArgs.model.closed}}
-            @statusType={{@outletArgs.model.topic_timer.status_type}}
-            @statusUpdate={{@outletArgs.model.topic_status_update}}
-            @executeAt={{@outletArgs.model.topic_timer.execute_at}}
-            @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
-            @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
-            @categoryId={{@outletArgs.model.topic_timer.category_id}}
-          />
+          <topic-timer-info @model={{@model}} />
         </div>
-      );
+      `;
     });
   }
 
-  if (removeBottomTimer) {
+  if (removeBottom) {
     api.modifyClass("component:topic-timer-info", {
       pluginId: "topic-timer-to-top",
 
@@ -53,9 +42,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   if (settings.use_parent_for_link) {
     api.onPageChange(() => {
       requestAnimationFrame(() => {
-        const allTimers = document.querySelectorAll(".topic-timer-info");
-
-        allTimers.forEach((el) => {
+        document.querySelectorAll(".topic-timer-info").forEach((el) => {
           const text = el.textContent?.trim();
           if (!text?.includes("will be published to")) return;
 
@@ -66,18 +53,15 @@ export default apiInitializer("topic-timer-to-top", (api) => {
           const match = href.match(/\/c\/(.+)\/(\d+)/);
           if (!match) return;
 
-          const fullSlug = match[1];
-          const slug = fullSlug.split("/").pop();
+          const slug = match[1].split("/").pop();
           const id = parseInt(match[2], 10);
-          const siteCategories = api.container.lookup("site:main").categories;
+          const cats = api.container.lookup("site:main").categories;
+          const cat = cats.find((c) => c.id === id && c.slug === slug);
+          if (!cat?.parent_category_id) return;
 
-          const category = siteCategories.find((cat) => cat.id === id && cat.slug === slug);
-          if (!category?.parent_category_id) return;
-
-          const parent = siteCategories.find((cat) => cat.id === category.parent_category_id);
+          const parent = cats.find((c) => c.id === cat.parent_category_id);
           if (!parent) return;
 
-          // ✅ Only change the text, keep link pointing to child
           categoryLink.textContent = `#${parent.slug}`;
         });
       });
