@@ -6,9 +6,23 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   const renderTopTimer = displayLocation === "Top" || displayLocation === "Both";
   const removeBottomTimer = displayLocation === "Top";
 
+  // Parse allowed category IDs, converting to an array of integers
+  const allowedCategoryIds = settings.allowed_category_ids
+    ? settings.allowed_category_ids.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id))
+    : [];
+
+  // Function to check if a topic is in an allowed category
+  const isAllowedCategory = (topicCategoryId) => {
+    // If no category IDs specified, allow all categories
+    if (allowedCategoryIds.length === 0) return true;
+    
+    // Check if topic's category ID is in the allowed list
+    return allowedCategoryIds.includes(topicCategoryId);
+  };
+
   if (renderTopTimer) {
     api.renderInOutlet("topic-above-posts", <template>
-      {{#if @outletArgs.model.topic_timer}}
+      {{#if @outletArgs.model.topic_timer && isAllowedCategory(@outletArgs.model.category.id)}}
         <div class="custom-topic-timer-top">
           <TopicTimerInfo
             @topicClosed={{@outletArgs.model.closed}}
@@ -27,13 +41,18 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   if (removeBottomTimer) {
     api.modifyClass("component:topic-timer-info", {
       didInsertElement() {
-        if (!this.element.closest(".custom-topic-timer-top")) {
+        const topicCategoryId = this.args.categoryId;
+        
+        // Only remove if not in top location and not in allowed categories
+        if (!this.element.closest(".custom-topic-timer-top") && 
+            !isAllowedCategory(topicCategoryId)) {
           this.element.remove();
         }
       },
     });
   }
 
+  // Rest of the existing code remains the same...
   if (settings.use_parent_for_link) {
     api.onPageChange(() => {
       requestAnimationFrame(() => {
