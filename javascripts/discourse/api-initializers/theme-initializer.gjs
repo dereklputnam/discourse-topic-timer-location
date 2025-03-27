@@ -137,11 +137,15 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         }
       }
       // Always modify category links to use parent category name
+      // and change "This topic" to "This announcement"
       if (shouldApply) {
         const allTimers = document.querySelectorAll(".topic-timer-info");
         const siteCategories = api.container.lookup("site:main").categories;
 
         allTimers.forEach((el) => {
+          // Replace "This topic" with "This announcement"
+          el.innerHTML = el.innerHTML.replace(/This topic/g, "This announcement");
+          
           const text = el.textContent?.trim();
           if (!text?.includes("will be published to")) return;
 
