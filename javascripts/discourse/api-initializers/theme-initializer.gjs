@@ -1,24 +1,32 @@
 import { apiInitializer } from "discourse/lib/api";
-import I18n from "I18n";
+import TopicTimerInfo from "discourse/components/topic-timer-info";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
-  const showTop = settings.display_location === "top" || settings.display_location === "both";
-  const hideBottom = settings.display_location === "top";
+  const displayLocation = settings.display_location;
+  const renderTopTimer = displayLocation === "top" || displayLocation === "both";
+  const removeBottomTimer = displayLocation === "top";
 
-  if (showTop) {
+  if (renderTopTimer) {
     api.renderInOutlet("topic-above-posts", <template>
-      {{#if (and @outletArgs.model.topic_timer @outletArgs.model.topic_timer.execute_at)}}
+      {{#if @outletArgs.model.topic_timer}}
         <div class="custom-topic-timer-top">
-          {{html-safe (i18n "topic_timer.publish_to" category=@outletArgs.model.topic_timer.category_id time=@outletArgs.model.topic_timer.execute_at)}}
+          <span class="timer-icon">🕒</span>
+          <TopicTimerInfo
+            @topicClosed={{@outletArgs.model.closed}}
+            @statusType={{@outletArgs.model.topic_timer.status_type}}
+            @statusUpdate={{@outletArgs.model.topic_status_update}}
+            @executeAt={{@outletArgs.model.topic_timer.execute_at}}
+            @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
+            @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
+            @categoryId={{@outletArgs.model.topic_timer.category_id}}
+          />
         </div>
       {{/if}}
     </template>);
   }
 
-  if (hideBottom) {
+  if (removeBottomTimer) {
     api.modifyClass("component:topic-timer-info", {
-      pluginId: "topic-timer-to-top",
-
       didInsertElement() {
         if (!this.element.closest(".custom-topic-timer-top")) {
           this.element.remove();
@@ -30,22 +38,32 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   if (settings.link_to_parent_category) {
     api.onPageChange(() => {
       requestAnimationFrame(() => {
-        document.querySelectorAll(".custom-topic-timer-top a[href*='/c/']").forEach((link) => {
-          const href = link.getAttribute("href");
+        const allTimers = document.querySelectorAll(".topic-timer-info");
+
+        allTimers.forEach((el) => {
+          const text = el.textContent?.trim();
+          if (!text?.includes("will be published to")) return;
+
+          const categoryLink = el.querySelector("a[href*='/c/']");
+          if (!categoryLink) return;
+
+          const href = categoryLink.getAttribute("href");
           const match = href.match(/\/c\/(.+)\/(\d+)/);
           if (!match) return;
 
-          const slug = match[1].split("/").pop();
+          const fullSlug = match[1];
+          const slug = fullSlug.split("/").pop();
           const id = parseInt(match[2], 10);
-          const cats = api.container.lookup("site:main").categories;
-          const cat = cats.find((c) => c.id === id && c.slug === slug);
-          if (!cat?.parent_category_id) return;
+          const siteCategories = api.container.lookup("site:main").categories;
 
-          const parent = cats.find((c) => c.id === cat.parent_category_id);
+          const category = siteCategories.find((cat) => cat.id === id && cat.slug === slug);
+          if (!category?.parent_category_id) return;
+
+          const parent = siteCategories.find((cat) => cat.id === category.parent_category_id);
           if (!parent) return;
 
-          link.textContent = `#${parent.slug}`;
-          link.setAttribute("href", `/c/${parent.slug}/${parent.id}`);
+          categoryLink.textContent = `#${parent.slug}`;
+          categoryLink.setAttribute("href", `/c/${parent.slug}/${parent.id}`);
         });
       });
     });
