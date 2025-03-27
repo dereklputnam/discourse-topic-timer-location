@@ -2,11 +2,10 @@ import { apiInitializer } from "discourse/lib/api";
 import TopicTimerInfo from "discourse/components/topic-timer-info";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
-  const displayAtTop = settings.display_location === "Top" || settings.display_location === "Both";
-  const displayAtBottom = settings.display_location === "Bottom" || settings.display_location === "Both";
+  const showTop = settings.display_location === "top" || settings.display_location === "both";
+  const showBottom = settings.display_location === "bottom" || settings.display_location === "both";
 
-  // Render top version if needed
-  if (displayAtTop) {
+  if (showTop) {
     api.renderInOutlet("topic-above-posts", (outletArgs) => {
       const topic = outletArgs.model;
       const timer = topic?.topic_timer;
@@ -15,7 +14,8 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       let effectiveCategoryId = timer.category_id;
 
       if (settings.link_to_parent_category && timer.status_type === 4) {
-        const category = api.container.lookup("store:main").peekRecord("category", timer.category_id);
+        const store = api.container.lookup("service:store");
+        const category = store.peekRecord("category", timer.category_id);
         if (category?.parent_category_id) {
           effectiveCategoryId = category.parent_category_id;
         }
@@ -37,8 +37,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     });
   }
 
-  // Remove bottom version only if setting excludes it
-  if (!displayAtBottom) {
+  if (!showBottom) {
     api.modifyClass("component:topic-timer-info", {
       didInsertElement() {
         if (!this.element.closest(".custom-topic-timer-top")) {
