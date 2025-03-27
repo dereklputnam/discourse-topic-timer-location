@@ -7,13 +7,8 @@ display_location:
     - Both
   description: "Where should the topic timer appear?"
 
-use_parent_for_link:
-  type: bool
-  default: false
-  description: "Use parent name for category link in topic timer banner?"
-
 enabled_categories:
   type: list
   list_type: category
   default: ""
-  description: "Choose which categories that users need to sign up for."
+  description: "Choose categories where the topic timer location will be modified. Leave empty to apply to all categories."
