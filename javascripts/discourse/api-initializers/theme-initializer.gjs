@@ -12,6 +12,8 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     .map((id) => parseInt(id, 10))
     .filter((id) => id);
   
+  console.log("Topic Timer Location: Enabled categories:", enabledCategories);
+  
   // Helper function to check if a category is enabled
   const isCategoryEnabled = (categoryId) => {
     // If no categories are specified, apply to all
@@ -19,39 +21,74 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       return true;
     }
     
-    return enabledCategories.includes(categoryId);
+    const numericId = parseInt(categoryId, 10);
+    const isEnabled = enabledCategories.includes(numericId);
+    console.log(`Topic Timer Location: Category ${numericId} enabled: ${isEnabled}`);
+    return isEnabled;
   };
 
   if (renderTopTimer) {
-    api.renderInOutlet("topic-above-posts", <template>
-      {{#if @outletArgs.model.topic_timer}}
-        <div class="custom-topic-timer-top">
-          <TopicTimerInfo
-            @topicClosed={{@outletArgs.model.closed}}
-            @statusType={{@outletArgs.model.topic_timer.status_type}}
-            @statusUpdate={{@outletArgs.model.topic_status_update}}
-            @executeAt={{@outletArgs.model.topic_timer.execute_at}}
-            @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
-            @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
-            @categoryId={{@outletArgs.model.topic_timer.category_id}}
-          />
-        </div>
-      {{/if}}
-    </template>);
+    // Original rendering logic
+    const originalRenderInOutlet = api.renderInOutlet;
+    
+    // Override the renderInOutlet method
+    api.renderInOutlet = function(outletName, fn) {
+      if (outletName === "topic-above-posts") {
+        // Custom implementation that checks category
+        return originalRenderInOutlet.call(this, outletName, function(outletArgs) {
+          const model = outletArgs.model;
+          const categoryId = model?.category?.id;
+          
+          // Check if this topic is in an enabled category
+          if (!isCategoryEnabled(categoryId)) {
+            console.log(`Topic Timer Location: Skipping top timer for category ${categoryId}`);
+            return "";
+          }
+          
+          // Original template
+          if (model.topic_timer) {
+            return `
+              <div class="custom-topic-timer-top">
+                ${originalRenderInOutlet.call(this, "topic-timer-info", {
+                  topicClosed: model.closed,
+                  statusType: model.topic_timer.status_type,
+                  statusUpdate: model.topic_status_update,
+                  executeAt: model.topic_timer.execute_at,
+                  basedOnLastPost: model.topic_timer.based_on_last_post,
+                  durationMinutes: model.topic_timer.duration_minutes,
+                  categoryId: model.topic_timer.category_id
+                })}
+              </div>
+            `;
+          }
+          
+          return "";
+        });
+      }
+      
+      // Default for other outlets
+      return originalRenderInOutlet.call(this, outletName, fn);
+    };
   }
 
   if (removeBottomTimer) {
     api.modifyClass("component:topic-timer-info", {
       didInsertElement() {
+        this._super(...arguments);
+        
         const topicController = api.container.lookup("controller:topic");
         const categoryId = topicController?.model?.category?.id;
         
-        // Only apply to enabled categories
-        if (isCategoryEnabled(categoryId)) {
-          // Remove if not in top container
-          if (!this.element.closest(".custom-topic-timer-top")) {
-            this.element.remove();
-          }
+        // Skip if not in an enabled category
+        if (!isCategoryEnabled(categoryId)) {
+          console.log(`Topic Timer Location: Skipping bottom timer removal for category ${categoryId}`);
+          return;
+        }
+        
+        // Only remove bottom timer (not in custom container)
+        if (!this.element.closest(".custom-topic-timer-top")) {
+          console.log(`Topic Timer Location: Removing bottom timer for category ${categoryId}`);
+          this.element.style.display = "none";
         }
       },
     });
@@ -63,10 +100,13 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         const topicController = api.container.lookup("controller:topic");
         const categoryId = topicController?.model?.category?.id;
         
-        // Only apply to enabled categories
+        // Skip if not in an enabled category
         if (!isCategoryEnabled(categoryId)) {
+          console.log(`Topic Timer Location: Skipping parent link for category ${categoryId}`);
           return;
         }
+        
+        console.log(`Topic Timer Location: Processing parent links for category ${categoryId}`);
         
         const allTimers = document.querySelectorAll(".topic-timer-info");
         const siteCategories = api.container.lookup("site:main").categories;
