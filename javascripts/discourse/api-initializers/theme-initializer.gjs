@@ -35,40 +35,61 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     });
   }
 
-  // DOM-based patch to override the category link to the parent
-  if (settings.link_to_parent_category) {
-    api.onPageChange(() => {
-      requestAnimationFrame(() => {
-        const allTimers = document.querySelectorAll(".topic-timer-info");
-  
-        allTimers.forEach((el) => {
-          const text = el.textContent?.trim();
-          if (!text?.includes("will be published to")) return;
-  
-          const categoryLink = el.querySelector("a[href*='/c/']");
-          if (!categoryLink) return;
-  
-          const href = categoryLink.getAttribute("href");
-          const match = href.match(/\/c\/([^\/]+)\/(\d+)/);
-          if (!match) return;
-  
-          const slug = match[1];
-          const id = parseInt(match[2], 10);
-          const siteCategories = api.container.lookup("site:main").categories;
-  
-          const category = siteCategories.find((cat) => cat.id === id && cat.slug === slug);
-          if (!category) return;
-          if (!category.parent_category_id) return;
-  
-          const parent = siteCategories.find((cat) => cat.id === category.parent_category_id);
-          if (!parent) return;
-  
-          console.log(`[topic-timer-to-top] Replacing category link: ${category.slug} → ${parent.slug}`);
-  
-          categoryLink.textContent = `#${parent.slug}`;
-          categoryLink.setAttribute("href", `/c/${parent.slug}/${parent.id}`);
-        });
+if (settings.link_to_parent_category) {
+  api.onPageChange(() => {
+    requestAnimationFrame(() => {
+      const allTimers = document.querySelectorAll(".topic-timer-info");
+      console.log(`[topic-timer-to-top] Found ${allTimers.length} .topic-timer-info elements`);
+
+      allTimers.forEach((el, i) => {
+        const text = el.textContent?.trim();
+        console.log(`[${i}] Text content:`, text);
+
+        if (!text?.includes("will be published to")) {
+          console.log(`[${i}] Skipping: not a publish timer`);
+          return;
+        }
+
+        const categoryLink = el.querySelector("a[href*='/c/']");
+        if (!categoryLink) {
+          console.log(`[${i}] Skipping: no category link found`);
+          return;
+        }
+
+        const href = categoryLink.getAttribute("href");
+        const match = href.match(/\/c\/([^\/]+)\/(\d+)/);
+        if (!match) {
+          console.log(`[${i}] Skipping: href did not match expected format`, href);
+          return;
+        }
+
+        const slug = match[1];
+        const id = parseInt(match[2], 10);
+        const siteCategories = api.container.lookup("site:main").categories;
+
+        const category = siteCategories.find((cat) => cat.id === id && cat.slug === slug);
+        if (!category) {
+          console.log(`[${i}] Skipping: no matching category found`);
+          return;
+        }
+
+        if (!category.parent_category_id) {
+          console.log(`[${i}] Skipping: no parent category for`, category.slug);
+          return;
+        }
+
+        const parent = siteCategories.find((cat) => cat.id === category.parent_category_id);
+        if (!parent) {
+          console.log(`[${i}] Skipping: parent category not found`);
+          return;
+        }
+
+        console.log(`[${i}] ✅ Replacing category link: ${category.slug} → ${parent.slug}`);
+
+        categoryLink.textContent = `#${parent.slug}`;
+        categoryLink.setAttribute("href", `/c/${parent.slug}/${parent.id}`);
       });
     });
-  }
+  });
+}
 });
