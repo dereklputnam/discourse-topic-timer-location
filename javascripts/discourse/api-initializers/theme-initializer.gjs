@@ -6,25 +6,29 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   const hideBottom = displayLocation === "Top";
 
   if (showTop) {
-    api.renderInOutlet("topic-above-posts", (outletArgs) => {
-      const topic = outletArgs?.model;
-      const categoryId = topic?.category_id;
+    // ✅ Safe template without logic
+    api.renderInOutlet("topic-above-posts", <template>
+      {{#if @outletArgs.model.topic_timer}}
+        <div class="custom-topic-timer-top" data-category-id={{@outletArgs.model.category_id}}>
+          <topic-timer-info />
+        </div>
+      {{/if}}
+    </template>);
 
-      // ✅ Filter categories in JS, before rendering the template
-      const shouldRenderTimer =
-        settings.enabled_category_ids?.length === 0 ||
-        settings.enabled_category_ids.includes(categoryId);
+    // ✅ Filter logic AFTER render — remove top if category not allowed
+    api.onPageChange(() => {
+      if (!settings.enabled_category_ids?.length) return;
 
-      if (!shouldRenderTimer || !topic?.topic_timer) return null;
-
-      // ✅ Render the template
-      return (
-        <template>
-          <div class="custom-topic-timer-top">
-            <topic-timer-info />
-          </div>
-        </template>
-      );
+      requestAnimationFrame(() => {
+        document
+          .querySelectorAll(".custom-topic-timer-top")
+          .forEach((el) => {
+            const catId = parseInt(el.dataset.categoryId, 10);
+            if (!settings.enabled_category_ids.includes(catId)) {
+              el.remove();
+            }
+          });
+      });
     });
   }
 
