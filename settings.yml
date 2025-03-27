@@ -11,8 +11,3 @@ link_to_parent_category:
   type: bool
   default: false
   description: "Use parent category link for publish timers"
-
-topic_label_override:
-  type: string
-  default: ""
-  description: "Replace the word 'topic' in the publish timer message (e.g., guide, announcement)"
