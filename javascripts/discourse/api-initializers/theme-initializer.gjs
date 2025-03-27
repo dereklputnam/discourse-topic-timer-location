@@ -15,9 +15,11 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   console.log("Topic Timer Location: Enabled categories:", enabledCategories);
   
   if (renderTopTimer) {
+    // This just creates the outlet placeholder, but we'll actually 
+    // handle the display via DOM manipulation to respect category filters
     api.renderInOutlet("topic-above-posts", <template>
       {{#if @outletArgs.model.topic_timer}}
-        <div class="custom-topic-timer-top">
+        <div class="custom-topic-timer-top" style="display: none;">
           <TopicTimerInfo
             @topicClosed={{@outletArgs.model.closed}}
             @statusType={{@outletArgs.model.topic_timer.status_type}}
@@ -36,15 +38,25 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   api.onPageChange(() => {
     requestAnimationFrame(() => {
       const topicController = api.container.lookup("controller:topic");
-      const categoryId = topicController?.model?.category?.id;
+      if (!topicController?.model) return;
+      
+      const categoryId = topicController.model.category?.id;
+      const hasTopic = !!topicController.model.topic_timer;
       
       // Convert to number for comparison
       const categoryIdNum = parseInt(categoryId, 10);
       console.log(`Topic Timer Location: Current category ID: ${categoryIdNum}`);
+      console.log(`Topic Timer Location: Has topic timer: ${hasTopic}`);
+      console.log(`Topic Timer Location: Display location: ${displayLocation}`);
       
       // Check if category is enabled or if all categories are enabled
       const shouldApply = enabledCategories.length === 0 || enabledCategories.includes(categoryIdNum);
       console.log(`Topic Timer Location: Should apply changes: ${shouldApply}`);
+      
+      if (!shouldApply || !hasTopic) {
+        // Do nothing if not in enabled category or no topic timer
+        return;
+      }
       
       // Find our custom container
       const topContainer = document.querySelector(".custom-topic-timer-top");
@@ -52,8 +64,38 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       // Find the bottom timer
       const bottomTimer = document.querySelector(".topic-status-info .topic-timer-info");
       
-      if (!shouldApply) {
-        // If not enabled, hide top container and ensure bottom is visible
+      // Handle display location (Top, Bottom, Both)
+      if (displayLocation === "Top") {
+        console.log("Topic Timer Location: Enabling top-only display");
+        
+        // Ensure top container is created if it doesn't exist
+        if (!topContainer && bottomTimer) {
+          const newTopContainer = document.createElement("div");
+          newTopContainer.className = "custom-topic-timer-top";
+          
+          // Clone the timer content
+          const clonedTimer = bottomTimer.cloneNode(true);
+          newTopContainer.appendChild(clonedTimer);
+          
+          // Insert before posts
+          const postsContainer = document.querySelector(".topic-post, .posts-wrapper");
+          if (postsContainer?.parentNode) {
+            postsContainer.parentNode.insertBefore(newTopContainer, postsContainer);
+          }
+        }
+        
+        // Show top, hide bottom
+        if (topContainer) {
+          topContainer.style.display = "";
+        }
+        
+        if (bottomTimer) {
+          bottomTimer.style.display = "none";
+        }
+      } else if (displayLocation === "Bottom") {
+        console.log("Topic Timer Location: Enabling bottom-only display");
+        
+        // Hide top, show bottom
         if (topContainer) {
           topContainer.style.display = "none";
         }
@@ -61,62 +103,62 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         if (bottomTimer) {
           bottomTimer.style.display = "";
         }
-      } else {
-        // Handle display location
-      if (shouldApply) {
-        console.log(`Topic Timer Location: Display location setting: ${displayLocation}`);
+      } else if (displayLocation === "Both") { 
+        console.log("Topic Timer Location: Enabling both displays");
         
-        // If enabled, show/hide according to display location
+        // Ensure top container is created if it doesn't exist
+        if (!topContainer && bottomTimer) {
+          const newTopContainer = document.createElement("div");
+          newTopContainer.className = "custom-topic-timer-top";
+          
+          // Clone the timer content
+          const clonedTimer = bottomTimer.cloneNode(true);
+          newTopContainer.appendChild(clonedTimer);
+          
+          // Insert before posts
+          const postsContainer = document.querySelector(".topic-post, .posts-wrapper");
+          if (postsContainer?.parentNode) {
+            postsContainer.parentNode.insertBefore(newTopContainer, postsContainer);
+          }
+        }
+        
+        // Show both
         if (topContainer) {
-          if (displayLocation === "Top" || displayLocation === "Both") {
-            // Show top container
-            topContainer.style.display = "";
-          } else {
-            // Hide top container
-            topContainer.style.display = "none";
-          }
+          topContainer.style.display = "";
         }
         
-        // Handle bottom timer according to settings
         if (bottomTimer) {
-          if (displayLocation === "Bottom" || displayLocation === "Both") {
-            // Show bottom timer
-            bottomTimer.style.display = "";
-          } else {
-            // Hide bottom timer
-            bottomTimer.style.display = "none";
-          }
+          bottomTimer.style.display = "";
         }
-        
-        // Handle parent link replacement if enabled
-        if (settings.use_parent_for_link) {
-          const allTimers = document.querySelectorAll(".topic-timer-info");
-          const siteCategories = api.container.lookup("site:main").categories;
+      }
+      // Handle parent link replacement if enabled
+      if (settings.use_parent_for_link && shouldApply) {
+        const allTimers = document.querySelectorAll(".topic-timer-info");
+        const siteCategories = api.container.lookup("site:main").categories;
 
-          allTimers.forEach((el) => {
-            const text = el.textContent?.trim();
-            if (!text?.includes("will be published to")) return;
+        allTimers.forEach((el) => {
+          const text = el.textContent?.trim();
+          if (!text?.includes("will be published to")) return;
 
-            const categoryLink = el.querySelector("a[href*='/c/']");
-            if (!categoryLink) return;
+          const categoryLink = el.querySelector("a[href*='/c/']");
+          if (!categoryLink) return;
 
-            const href = categoryLink.getAttribute("href");
-            const match = href.match(/\/c\/(.+)\/(\d+)/);
-            if (!match) return;
+          const href = categoryLink.getAttribute("href");
+          const match = href.match(/\/c\/(.+)\/(\d+)/);
+          if (!match) return;
 
-            const fullSlug = match[1];
-            const slug = fullSlug.split("/").pop();
-            const id = parseInt(match[2], 10);
+          const fullSlug = match[1];
+          const slug = fullSlug.split("/").pop();
+          const id = parseInt(match[2], 10);
 
-            const category = siteCategories.find((cat) => cat.id === id && cat.slug === slug);
-            if (!category?.parent_category_id) return;
+          const category = siteCategories.find((cat) => cat.id === id && cat.slug === slug);
+          if (!category?.parent_category_id) return;
 
-            const parent = siteCategories.find((cat) => cat.id === category.parent_category_id);
-            if (!parent) return;
+          const parent = siteCategories.find((cat) => cat.id === category.parent_category_id);
+          if (!parent) return;
 
-            categoryLink.textContent = `#${parent.slug}`;
-          });
-        }
+          categoryLink.textContent = `#${parent.slug}`;
+        });
       }
     });
   });
