@@ -62,14 +62,30 @@ export default apiInitializer("topic-timer-to-top", (api) => {
           bottomTimer.style.display = "";
         }
       } else {
-        // If enabled, show top container if needed
+        // Handle display location
+      if (shouldApply) {
+        console.log(`Topic Timer Location: Display location setting: ${displayLocation}`);
+        
+        // If enabled, show/hide according to display location
         if (topContainer) {
-          topContainer.style.display = "";
+          if (displayLocation === "Top" || displayLocation === "Both") {
+            // Show top container
+            topContainer.style.display = "";
+          } else {
+            // Hide top container
+            topContainer.style.display = "none";
+          }
         }
         
         // Handle bottom timer according to settings
-        if (bottomTimer && removeBottomTimer) {
-          bottomTimer.style.display = "none";
+        if (bottomTimer) {
+          if (displayLocation === "Bottom" || displayLocation === "Both") {
+            // Show bottom timer
+            bottomTimer.style.display = "";
+          } else {
+            // Hide bottom timer
+            bottomTimer.style.display = "none";
+          }
         }
         
         // Handle parent link replacement if enabled
