@@ -136,8 +136,8 @@ export default apiInitializer("topic-timer-to-top", (api) => {
           bottomTimer.style.display = "";
         }
       }
-      // Handle parent link replacement if enabled
-      if (settings.use_parent_for_link && shouldApply) {
+      // Always modify category links to use parent category name
+      if (shouldApply) {
         const allTimers = document.querySelectorAll(".topic-timer-info");
         const siteCategories = api.container.lookup("site:main").categories;
 
@@ -162,7 +162,8 @@ export default apiInitializer("topic-timer-to-top", (api) => {
           const parent = siteCategories.find((cat) => cat.id === category.parent_category_id);
           if (!parent) return;
 
-          categoryLink.textContent = `#${parent.slug}`;
+          // Use parent category name instead of slug
+          categoryLink.textContent = parent.name;
         });
       }
     });
