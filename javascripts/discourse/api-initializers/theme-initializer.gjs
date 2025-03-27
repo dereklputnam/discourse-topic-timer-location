@@ -6,9 +6,15 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   const renderTopTimer = displayLocation === "Top" || displayLocation === "Both";
   const removeBottomTimer = displayLocation === "Top";
 
+  function isCategoryEnabled(model) {
+    if (!settings.enabled_category_slugs?.length) return true; // No filter = allow all
+    const slug = model?.category?.slug;
+    return slug && settings.enabled_category_slugs.includes(slug);
+  }
+
   if (renderTopTimer) {
     api.renderInOutlet("topic-above-posts", <template>
-      {{#if @outletArgs.model.topic_timer}}
+      {{#if (and @outletArgs.model.topic_timer (js isCategoryEnabled @outletArgs.model))}}
         <div class="custom-topic-timer-top">
           <TopicTimerInfo
             @topicClosed={{@outletArgs.model.closed}}
@@ -26,6 +32,8 @@ export default apiInitializer("topic-timer-to-top", (api) => {
 
   if (removeBottomTimer) {
     api.modifyClass("component:topic-timer-info", {
+      pluginId: "topic-timer-to-top",
+
       didInsertElement() {
         if (!this.element.closest(".custom-topic-timer-top")) {
           this.element.remove();
@@ -61,6 +69,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
           const parent = siteCategories.find((cat) => cat.id === category.parent_category_id);
           if (!parent) return;
 
+          // ✅ Only change the text, keep link pointing to child
           categoryLink.textContent = `#${parent.slug}`;
         });
       });
