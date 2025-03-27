@@ -2,6 +2,8 @@ import { apiInitializer } from "discourse/lib/api";
 import TopicTimerInfo from "discourse/components/topic-timer-info";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
+  console.log("[topic-timer-to-top] display_location:", settings.display_location);
+  console.log("[topic-timer-to-top] link_to_parent_category:", settings.link_to_parent_category);
   const showTop = settings.display_location === "top" || settings.display_location === "both";
   const showBottom = settings.display_location === "bottom" || settings.display_location === "both";
 
