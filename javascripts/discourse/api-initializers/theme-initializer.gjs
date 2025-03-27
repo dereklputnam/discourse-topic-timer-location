@@ -1,5 +1,4 @@
 import { apiInitializer } from "discourse/lib/api";
-import { registerHelper } from "discourse-common/lib/helpers";
 import TopicTimerInfo from "discourse/components/topic-timer-info";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
@@ -12,33 +11,29 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     ? settings.allowed_category_ids.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id))
     : [];
 
-  // Register a helper to check if a category is allowed
-  registerHelper('isAllowedCategory', (categoryId) => {
-    // If no category IDs specified, allow all categories
-    if (allowedCategoryIds.length === 0) return true;
-    
-    // Check if topic's category ID is in the allowed list
-    return allowedCategoryIds.includes(categoryId);
-  });
-
   if (renderTopTimer) {
-    api.renderInOutlet("topic-above-posts", <template>
-      {{#if @outletArgs.model.topic_timer}}
-        {{#if (isAllowedCategory @outletArgs.model.category.id)}}
-          <div class="custom-topic-timer-top">
-            <TopicTimerInfo
-              @topicClosed={{@outletArgs.model.closed}}
-              @statusType={{@outletArgs.model.topic_timer.status_type}}
-              @statusUpdate={{@outletArgs.model.topic_status_update}}
-              @executeAt={{@outletArgs.model.topic_timer.execute_at}}
-              @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
-              @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
-              @categoryId={{@outletArgs.model.topic_timer.category_id}}
-            />
-          </div>
-        {{/if}}
-      {{/if}}
-    </template>);
+    api.renderInOutlet("topic-above-posts", (outletArgs) => {
+      const model = outletArgs.model;
+      
+      // Check if topic timer exists and category is allowed
+      if (model.topic_timer && 
+          (allowedCategoryIds.length === 0 || 
+           allowedCategoryIds.includes(model.category.id))) {
+        return <div class="custom-topic-timer-top">
+          <TopicTimerInfo
+            @topicClosed={model.closed}
+            @statusType={model.topic_timer.status_type}
+            @statusUpdate={model.topic_status_update}
+            @executeAt={model.topic_timer.execute_at}
+            @basedOnLastPost={model.topic_timer.based_on_last_post}
+            @durationMinutes={model.topic_timer.duration_minutes}
+            @categoryId={model.topic_timer.category_id}
+          />
+        </div>;
+      }
+      
+      return null;
+    });
   }
 
   if (removeBottomTimer) {
@@ -48,7 +43,8 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         
         // Only remove if not in top location and not in allowed categories
         if (!this.element.closest(".custom-topic-timer-top") && 
-            !this.isAllowedCategory(topicCategoryId)) {
+            (allowedCategoryIds.length > 0 && 
+             !allowedCategoryIds.includes(topicCategoryId))) {
           this.element.remove();
         }
       },
