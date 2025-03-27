@@ -3,56 +3,60 @@ import TopicTimerInfo from "discourse/components/topic-timer-info";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
   const displayLocation = settings.display_location;
-  const renderTopTimer = displayLocation === "top" || displayLocation === "both";
-  const removeBottomTimer = displayLocation === "top";
+  const showTop = displayLocation === "top" || displayLocation === "both";
+  const removeBottom = displayLocation === "top";
 
-  // ✅ Render top timer
-  if (renderTopTimer) {
-    api.renderInOutlet("topic-above-posts", <template>
-      {{#if @outletArgs.model.topic_timer}}
+  // ✅ Render timer at the top using outletArgs directly
+  if (showTop) {
+    api.renderInOutlet("topic-above-posts", (outletArgs) => {
+      const topic = outletArgs?.model;
+      const timer = topic?.topic_timer;
+      if (!timer) return;
+
+      return (
         <TopicTimerInfo
-          @topicClosed={{@outletArgs.model.closed}}
-          @statusType={{@outletArgs.model.topic_timer.status_type}}
-          @statusUpdate={{@outletArgs.model.topic_status_update}}
-          @executeAt={{@outletArgs.model.topic_timer.execute_at}}
-          @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
-          @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
-          @categoryId={{@outletArgs.model.topic_timer.category_id}}
+          @topicClosed={topic.closed}
+          @statusType={timer.status_type}
+          @statusUpdate={topic.topic_status_update}
+          @executeAt={timer.execute_at}
+          @basedOnLastPost={timer.based_on_last_post}
+          @durationMinutes={timer.duration_minutes}
+          @categoryId={timer.category_id}
         />
-      {{/if}}
-    </template>);
+      );
+    });
   }
 
-  // ✅ Hide default (bottom) version if needed
-  if (removeBottomTimer) {
+  // ✅ Remove bottom version if top-only
+  if (removeBottom) {
     api.modifyClass("component:topic-timer-info", {
       didInsertElement() {
-        if (!this.element.closest(".topic-above-posts")) {
+        if (!this.element.closest("[data-plugin-outlet='topic-above-posts']")) {
           this.element.remove();
         }
       },
     });
   }
 
-  // ✅ Replace category link with parent category (DOM patch)
+  // ✅ DOM patch: label and parent category
   if (settings.link_to_parent_category || settings.topic_label_override) {
     api.onPageChange(() => {
       requestAnimationFrame(() => {
         const allTimers = document.querySelectorAll(".topic-timer-info");
 
         allTimers.forEach((el) => {
-          let text = el.textContent?.trim();
+          const text = el.textContent?.trim();
           if (!text?.includes("will be published to")) return;
 
-          // ✅ Swap "topic" with custom label if needed
+          // 🔤 Replace "This topic" label
           if (settings.topic_label_override) {
             el.innerHTML = el.innerHTML.replace(
-              /\bThis topic\b/,
+              /\bThis topic\b/i,
               `This ${settings.topic_label_override}`
             );
           }
 
-          // ✅ Replace with parent category if enabled
+          // 🔁 Swap category link to parent
           if (settings.link_to_parent_category) {
             const categoryLink = el.querySelector("a[href*='/c/']");
             if (!categoryLink) return;
