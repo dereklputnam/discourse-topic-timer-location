@@ -1,13 +1,3 @@
-enabled_category_ids:
-  type: list
-  default: ""
-  description: "Only apply to topics in these category IDs (one per line)"
-
-use_parent_for_link:
-  type: bool
-  default: false
-  description: "Show parent category name but keep original link target"
-
 display_location:
   type: enum
   default: "Both"
@@ -16,3 +6,8 @@ display_location:
     - Bottom
     - Both
   description: "Where should the topic timer appear?"
+
+use_parent_for_link:
+  type: bool
+  default: false
+  description: "Use parent name for category link in topic timer banner?"
