@@ -12,24 +12,24 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     : [];
 
   if (renderTopTimer) {
-    api.renderInOutlet("topic-above-posts", (outletArgs) => {
+    api.renderInOutlet("topic-above-posts", function(outletArgs) {
       const model = outletArgs.model;
       
       // Check if topic timer exists and category is allowed
       if (model.topic_timer && 
           (allowedCategoryIds.length === 0 || 
            allowedCategoryIds.includes(model.category.id))) {
-        return <div class="custom-topic-timer-top">
+        return this.renderToString(<div class="custom-topic-timer-top">
           <TopicTimerInfo
-            @topicClosed={model.closed}
-            @statusType={model.topic_timer.status_type}
-            @statusUpdate={model.topic_status_update}
-            @executeAt={model.topic_timer.execute_at}
-            @basedOnLastPost={model.topic_timer.based_on_last_post}
-            @durationMinutes={model.topic_timer.duration_minutes}
-            @categoryId={model.topic_timer.category_id}
+            topicClosed={model.closed}
+            statusType={model.topic_timer.status_type}
+            statusUpdate={model.topic_status_update}
+            executeAt={model.topic_timer.execute_at}
+            basedOnLastPost={model.topic_timer.based_on_last_post}
+            durationMinutes={model.topic_timer.duration_minutes}
+            categoryId={model.topic_timer.category_id}
           />
-        </div>;
+        </div>);
       }
       
       return null;
@@ -51,7 +51,6 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     });
   }
 
-  // Rest of the existing code remains the same...
   if (settings.use_parent_for_link) {
     api.onPageChange(() => {
       requestAnimationFrame(() => {
