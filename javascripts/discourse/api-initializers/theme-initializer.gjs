@@ -7,17 +7,23 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   const hideBottom = displayLocation === "Top";
 
   if (showTop) {
-    // ✅ Use renderInOutlet with <template>, no return
-    api.renderInOutlet("topic-above-posts", <template>
-      {{#if
-        (and
-          @outletArgs.model.topic_timer
-          (or
-            (not (settings.enabled_category_ids.length))
-            (includes settings.enabled_category_ids @outletArgs.model.category_id)
-          )
-        )
-      }}
+    api.renderInOutlet("topic-above-posts", (outletArgs) => {
+      const topic = outletArgs?.model;
+      const categoryId = topic?.category_id;
+
+      // ✅ Category filtering handled here
+      if (
+        settings.enabled_category_ids?.length &&
+        (!categoryId || !settings.enabled_category_ids.includes(categoryId))
+      ) {
+        return null;
+      }
+
+      // ✅ Only render if there's a topic timer
+      if (!topic?.topic_timer) return null;
+
+      // ✅ Glimmer-safe template with no logic
+      return api.hbs`
         <div class="custom-topic-timer-top">
           <TopicTimerInfo
             @topicClosed={{@outletArgs.model.closed}}
@@ -29,8 +35,8 @@ export default apiInitializer("topic-timer-to-top", (api) => {
             @categoryId={{@outletArgs.model.topic_timer.category_id}}
           />
         </div>
-      {{/if}}
-    </template>);
+      `;
+    });
   }
 
   if (hideBottom) {
