@@ -1,0 +1,8 @@
+display_location:
+  type: enum
+  default: "Both"
+  choices:
+    - Both
+    - Top
+    - Bottom
+  description: "Where should the topic timer appear?"
