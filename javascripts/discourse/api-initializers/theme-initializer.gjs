@@ -1,4 +1,5 @@
 import { apiInitializer } from "discourse/lib/api";
+import I18n from "I18n";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
   const showTop = settings.display_location === "top" || settings.display_location === "both";
@@ -6,9 +7,9 @@ export default apiInitializer("topic-timer-to-top", (api) => {
 
   if (showTop) {
     api.renderInOutlet("topic-above-posts", <template>
-      {{#if @outletArgs.model.topic_timer}}
+      {{#if (and @outletArgs.model.topic_timer @outletArgs.model.topic_timer.execute_at)}}
         <div class="custom-topic-timer-top">
-          <topic-timer-info />
+          {{html-safe (i18n "topic_timer.publish_to" category=@outletArgs.model.topic_timer.category_id time=@outletArgs.model.topic_timer.execute_at)}}
         </div>
       {{/if}}
     </template>);
@@ -26,17 +27,10 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     });
   }
 
-  // ✅ Only keep parent category override
   if (settings.link_to_parent_category) {
     api.onPageChange(() => {
       requestAnimationFrame(() => {
-        document.querySelectorAll(".topic-timer-info").forEach((el) => {
-          const text = el.textContent?.trim();
-          if (!text?.includes("will be published to")) return;
-
-          const link = el.querySelector("a[href*='/c/']");
-          if (!link) return;
-
+        document.querySelectorAll(".custom-topic-timer-top a[href*='/c/']").forEach((link) => {
           const href = link.getAttribute("href");
           const match = href.match(/\/c\/(.+)\/(\d+)/);
           if (!match) return;
