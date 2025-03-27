@@ -2,10 +2,14 @@ import { apiInitializer } from "discourse/lib/api";
 import TopicTimerInfo from "discourse/components/topic-timer-info";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
-  const location = settings.display_location;
+  // ✅ Use settings only inside this function scope (safe!)
+  const displayLocation = settings.display_location;
 
-  // ✅ TOP TIMER: only render if top or both selected
-  if (location === "top" || location === "both") {
+  const renderTopTimer = displayLocation === "top" || displayLocation === "both";
+  const removeBottomTimer = displayLocation === "top";
+
+  // ✅ Render top timer
+  if (renderTopTimer) {
     api.renderInOutlet("topic-above-posts", <template>
       {{#if @outletArgs.model.topic_timer}}
         <div class="custom-topic-timer-top">
@@ -24,8 +28,8 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     </template>);
   }
 
-  // ✅ BOTTOM TIMER: remove if "top" is selected
-  if (location === "top") {
+  // ✅ Suppress bottom timer if needed
+  if (removeBottomTimer) {
     api.modifyClass("component:topic-timer-info", {
       didInsertElement() {
         if (!this.element.closest(".custom-topic-timer-top")) {
@@ -35,7 +39,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     });
   }
 
-  // ✅ CATEGORY LINK OVERRIDE
+  // ✅ Parent category DOM patch
   if (settings.link_to_parent_category) {
     api.onPageChange(() => {
       requestAnimationFrame(() => {
