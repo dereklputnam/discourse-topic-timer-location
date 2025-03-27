@@ -10,7 +10,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     api.renderInOutlet("topic-above-posts", <template>
       {{#if @outletArgs.model.topic_timer}}
         <div class="custom-topic-timer-top" data-category-id={{@outletArgs.model.category_id}}>
-          <topic-timer-info />
+          <topic-timer-info @model={{@outletArgs.model}} />
         </div>
       {{/if}}
     </template>);
