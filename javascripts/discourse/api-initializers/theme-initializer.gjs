@@ -10,6 +10,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     api.renderInOutlet("topic-above-posts", <template>
       {{#if @outletArgs.model.topic_timer}}
         <div class="custom-topic-timer-top">
+          {{d-icon "clock"}}
           <TopicTimerInfo
             @topicClosed={{@outletArgs.model.closed}}
             @statusType={{@outletArgs.model.topic_timer.status_type}}
