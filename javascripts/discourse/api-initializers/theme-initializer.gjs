@@ -14,127 +14,105 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   
   console.log("Topic Timer Location: Enabled categories:", enabledCategories);
   
-  // Helper function to check if a category is enabled
-  const isCategoryEnabled = (categoryId) => {
-    // If no categories are specified, apply to all
-    if (enabledCategories.length === 0) {
-      return true;
-    }
-    
-    const numericId = parseInt(categoryId, 10);
-    const isEnabled = enabledCategories.includes(numericId);
-    console.log(`Topic Timer Location: Category ${numericId} enabled: ${isEnabled}`);
-    return isEnabled;
-  };
-
   if (renderTopTimer) {
-    // Original rendering logic
-    const originalRenderInOutlet = api.renderInOutlet;
-    
-    // Override the renderInOutlet method
-    api.renderInOutlet = function(outletName, fn) {
-      if (outletName === "topic-above-posts") {
-        // Custom implementation that checks category
-        return originalRenderInOutlet.call(this, outletName, function(outletArgs) {
-          const model = outletArgs.model;
-          const categoryId = model?.category?.id;
-          
-          // Check if this topic is in an enabled category
-          if (!isCategoryEnabled(categoryId)) {
-            console.log(`Topic Timer Location: Skipping top timer for category ${categoryId}`);
-            return "";
-          }
-          
-          // Original template
-          if (model.topic_timer) {
-            return `
-              <div class="custom-topic-timer-top">
-                ${originalRenderInOutlet.call(this, "topic-timer-info", {
-                  topicClosed: model.closed,
-                  statusType: model.topic_timer.status_type,
-                  statusUpdate: model.topic_status_update,
-                  executeAt: model.topic_timer.execute_at,
-                  basedOnLastPost: model.topic_timer.based_on_last_post,
-                  durationMinutes: model.topic_timer.duration_minutes,
-                  categoryId: model.topic_timer.category_id
-                })}
-              </div>
-            `;
-          }
-          
-          return "";
-        });
-      }
-      
-      // Default for other outlets
-      return originalRenderInOutlet.call(this, outletName, fn);
-    };
+    api.renderInOutlet("topic-above-posts", <template>
+      {{#if @outletArgs.model.topic_timer}}
+        <div class="custom-topic-timer-top">
+          <TopicTimerInfo
+            @topicClosed={{@outletArgs.model.closed}}
+            @statusType={{@outletArgs.model.topic_timer.status_type}}
+            @statusUpdate={{@outletArgs.model.topic_status_update}}
+            @executeAt={{@outletArgs.model.topic_timer.execute_at}}
+            @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
+            @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
+            @categoryId={{@outletArgs.model.topic_timer.category_id}}
+          />
+        </div>
+      {{/if}}
+    </template>);
   }
 
+  // Handle category filtering through DOM manipulation
+  api.onPageChange(() => {
+    requestAnimationFrame(() => {
+      const topicController = api.container.lookup("controller:topic");
+      const categoryId = topicController?.model?.category?.id;
+      
+      // Convert to number for comparison
+      const categoryIdNum = parseInt(categoryId, 10);
+      console.log(`Topic Timer Location: Current category ID: ${categoryIdNum}`);
+      
+      // Check if category is enabled or if all categories are enabled
+      const shouldApply = enabledCategories.length === 0 || enabledCategories.includes(categoryIdNum);
+      console.log(`Topic Timer Location: Should apply changes: ${shouldApply}`);
+      
+      // Find our custom container
+      const topContainer = document.querySelector(".custom-topic-timer-top");
+      
+      // Find the bottom timer
+      const bottomTimer = document.querySelector(".topic-status-info .topic-timer-info");
+      
+      if (!shouldApply) {
+        // If not enabled, hide top container and ensure bottom is visible
+        if (topContainer) {
+          topContainer.style.display = "none";
+        }
+        
+        if (bottomTimer) {
+          bottomTimer.style.display = "";
+        }
+      } else {
+        // If enabled, show top container if needed
+        if (topContainer) {
+          topContainer.style.display = "";
+        }
+        
+        // Handle bottom timer according to settings
+        if (bottomTimer && removeBottomTimer) {
+          bottomTimer.style.display = "none";
+        }
+        
+        // Handle parent link replacement if enabled
+        if (settings.use_parent_for_link) {
+          const allTimers = document.querySelectorAll(".topic-timer-info");
+          const siteCategories = api.container.lookup("site:main").categories;
+
+          allTimers.forEach((el) => {
+            const text = el.textContent?.trim();
+            if (!text?.includes("will be published to")) return;
+
+            const categoryLink = el.querySelector("a[href*='/c/']");
+            if (!categoryLink) return;
+
+            const href = categoryLink.getAttribute("href");
+            const match = href.match(/\/c\/(.+)\/(\d+)/);
+            if (!match) return;
+
+            const fullSlug = match[1];
+            const slug = fullSlug.split("/").pop();
+            const id = parseInt(match[2], 10);
+
+            const category = siteCategories.find((cat) => cat.id === id && cat.slug === slug);
+            if (!category?.parent_category_id) return;
+
+            const parent = siteCategories.find((cat) => cat.id === category.parent_category_id);
+            if (!parent) return;
+
+            categoryLink.textContent = `#${parent.slug}`;
+          });
+        }
+      }
+    });
+  });
+
+  // This is still necessary to create the initial element
   if (removeBottomTimer) {
     api.modifyClass("component:topic-timer-info", {
       didInsertElement() {
         this._super(...arguments);
         
-        const topicController = api.container.lookup("controller:topic");
-        const categoryId = topicController?.model?.category?.id;
-        
-        // Skip if not in an enabled category
-        if (!isCategoryEnabled(categoryId)) {
-          console.log(`Topic Timer Location: Skipping bottom timer removal for category ${categoryId}`);
-          return;
-        }
-        
-        // Only remove bottom timer (not in custom container)
-        if (!this.element.closest(".custom-topic-timer-top")) {
-          console.log(`Topic Timer Location: Removing bottom timer for category ${categoryId}`);
-          this.element.style.display = "none";
-        }
+        // Actual display/hiding now handled in onPageChange
       },
-    });
-  }
-
-  if (settings.use_parent_for_link) {
-    api.onPageChange(() => {
-      requestAnimationFrame(() => {
-        const topicController = api.container.lookup("controller:topic");
-        const categoryId = topicController?.model?.category?.id;
-        
-        // Skip if not in an enabled category
-        if (!isCategoryEnabled(categoryId)) {
-          console.log(`Topic Timer Location: Skipping parent link for category ${categoryId}`);
-          return;
-        }
-        
-        console.log(`Topic Timer Location: Processing parent links for category ${categoryId}`);
-        
-        const allTimers = document.querySelectorAll(".topic-timer-info");
-        const siteCategories = api.container.lookup("site:main").categories;
-
-        allTimers.forEach((el) => {
-          const text = el.textContent?.trim();
-          if (!text?.includes("will be published to")) return;
-
-          const categoryLink = el.querySelector("a[href*='/c/']");
-          if (!categoryLink) return;
-
-          const href = categoryLink.getAttribute("href");
-          const match = href.match(/\/c\/(.+)\/(\d+)/);
-          if (!match) return;
-
-          const fullSlug = match[1];
-          const slug = fullSlug.split("/").pop();
-          const id = parseInt(match[2], 10);
-
-          const category = siteCategories.find((cat) => cat.id === id && cat.slug === slug);
-          if (!category?.parent_category_id) return;
-
-          const parent = siteCategories.find((cat) => cat.id === category.parent_category_id);
-          if (!parent) return;
-
-          categoryLink.textContent = `#${parent.slug}`;
-        });
-      });
     });
   }
 });
