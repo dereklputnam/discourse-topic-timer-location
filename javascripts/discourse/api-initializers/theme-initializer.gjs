@@ -84,14 +84,19 @@ export default apiInitializer("topic-timer-to-top", (api) => {
           }
         }
         
-        // Show top, hide bottom
-        if (topContainer) {
-          topContainer.style.display = "";
-        }
-        
-        if (bottomTimer) {
-          bottomTimer.style.display = "none";
-        }
+        // Wait a tiny bit to ensure the DOM has updated
+        setTimeout(() => {
+          // Show top, hide bottom (make another attempt)
+          if (topContainer) {
+            topContainer.style.display = "";
+          }
+          
+          // Find bottom timer again (might have been recreated)
+          const bottomTimerAgain = document.querySelector(".topic-status-info .topic-timer-info");
+          if (bottomTimerAgain) {
+            bottomTimerAgain.style.display = "none";
+          }
+        }, 50);
       } else if (displayLocation === "Bottom") {
         console.log("Topic Timer Location: Enabling bottom-only display");
         
@@ -163,13 +168,27 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     });
   });
 
-  // This is still necessary to create the initial element
+  // Additional cleanup for bottom timer when in "Top" mode
   if (removeBottomTimer) {
     api.modifyClass("component:topic-timer-info", {
       didInsertElement() {
         this._super(...arguments);
         
-        // Actual display/hiding now handled in onPageChange
+        // Handle bottom timer hiding for "Top" mode
+        const topicController = api.container.lookup("controller:topic");
+        if (!topicController?.model) return;
+        
+        const categoryId = topicController.model.category?.id;
+        const categoryIdNum = parseInt(categoryId, 10);
+        
+        // Only apply to enabled categories
+        const shouldApply = enabledCategories.length === 0 || enabledCategories.includes(categoryIdNum);
+        if (!shouldApply) return;
+        
+        // If this is the bottom timer (not in custom container) and display mode is "Top", hide it
+        if (displayLocation === "Top" && !this.element.closest(".custom-topic-timer-top")) {
+          this.element.style.display = "none";
+        }
       },
     });
   }
