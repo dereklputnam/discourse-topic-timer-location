@@ -3,8 +3,9 @@ import TopicTimerInfo from "discourse/components/topic-timer-info";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
   const displayAtTop = settings.display_location === "top" || settings.display_location === "both";
-  const hideBottom = settings.display_location === "top";
+  const displayAtBottom = settings.display_location === "bottom" || settings.display_location === "both";
 
+  // Render top version if needed
   if (displayAtTop) {
     api.renderInOutlet("topic-above-posts", (outletArgs) => {
       const topic = outletArgs.model;
@@ -13,7 +14,6 @@ export default apiInitializer("topic-timer-to-top", (api) => {
 
       let effectiveCategoryId = timer.category_id;
 
-      // For publish timers (status_type === 4), override with parent category if enabled
       if (settings.link_to_parent_category && timer.status_type === 4) {
         const category = api.container.lookup("store:main").peekRecord("category", timer.category_id);
         if (category?.parent_category_id) {
@@ -24,12 +24,12 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       return (
         <div class="custom-topic-timer-top">
           <TopicTimerInfo
-            @topicClosed={topic.closed}
-            @statusType={timer.status_type}
-            @statusUpdate={topic.topic_status_update}
-            @executeAt={timer.execute_at}
-            @basedOnLastPost={timer.based_on_last_post}
-            @durationMinutes={timer.duration_minutes}
+            @topicClosed={{@outletArgs.model.closed}}
+            @statusType={{@outletArgs.model.topic_timer.status_type}}
+            @statusUpdate={{@outletArgs.model.topic_status_update}}
+            @executeAt={{@outletArgs.model.topic_timer.execute_at}}
+            @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
+            @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
             @categoryId={effectiveCategoryId}
           />
         </div>
@@ -37,7 +37,8 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     });
   }
 
-  if (hideBottom) {
+  // Remove bottom version only if setting excludes it
+  if (!displayAtBottom) {
     api.modifyClass("component:topic-timer-info", {
       didInsertElement() {
         if (!this.element.closest(".custom-topic-timer-top")) {
