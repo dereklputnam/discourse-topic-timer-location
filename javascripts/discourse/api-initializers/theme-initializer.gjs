@@ -2,44 +2,46 @@ import { apiInitializer } from "discourse/lib/api";
 import TopicTimerInfo from "discourse/components/topic-timer-info";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
-  // TOP TIMER
-  api.renderInOutlet("topic-above-posts", <template>
-    {{#if (and (or (eq settings.display_location "top") (eq settings.display_location "both"))
-               @outletArgs.model.topic_timer)}}
-      <div class="custom-topic-timer-top">
-        {{d-icon "clock"}}
-        <TopicTimerInfo
-          @topicClosed={{@outletArgs.model.closed}}
-          @statusType={{@outletArgs.model.topic_timer.status_type}}
-          @statusUpdate={{@outletArgs.model.topic_status_update}}
-          @executeAt={{@outletArgs.model.topic_timer.execute_at}}
-          @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
-          @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
-          @categoryId={{@outletArgs.model.topic_timer.category_id}}
-        />
-      </div>
-    {{/if}}
-  </template>);
+  const location = settings.display_location;
 
-  // BOTTOM TIMER SUPPRESSION (at runtime)
-  api.modifyClass("component:topic-timer-info", {
-    didInsertElement() {
-      if (
-        settings.display_location === "top" &&
-        !this.element.closest(".custom-topic-timer-top")
-      ) {
-        this.element.remove();
-      }
-    },
-  });
+  // ✅ TOP TIMER: only render if top or both selected
+  if (location === "top" || location === "both") {
+    api.renderInOutlet("topic-above-posts", <template>
+      {{#if @outletArgs.model.topic_timer}}
+        <div class="custom-topic-timer-top">
+          {{d-icon "clock"}}
+          <TopicTimerInfo
+            @topicClosed={{@outletArgs.model.closed}}
+            @statusType={{@outletArgs.model.topic_timer.status_type}}
+            @statusUpdate={{@outletArgs.model.topic_status_update}}
+            @executeAt={{@outletArgs.model.topic_timer.execute_at}}
+            @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
+            @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
+            @categoryId={{@outletArgs.model.topic_timer.category_id}}
+          />
+        </div>
+      {{/if}}
+    </template>);
+  }
 
-  // CATEGORY LINK OVERRIDE (DOM patch)
+  // ✅ BOTTOM TIMER: remove if "top" is selected
+  if (location === "top") {
+    api.modifyClass("component:topic-timer-info", {
+      didInsertElement() {
+        if (!this.element.closest(".custom-topic-timer-top")) {
+          this.element.remove();
+        }
+      },
+    });
+  }
+
+  // ✅ CATEGORY LINK OVERRIDE
   if (settings.link_to_parent_category) {
     api.onPageChange(() => {
       requestAnimationFrame(() => {
         const allTimers = document.querySelectorAll(".topic-timer-info");
 
-        allTimers.forEach((el, i) => {
+        allTimers.forEach((el) => {
           const text = el.textContent?.trim();
           if (!text?.includes("will be published to")) return;
 
