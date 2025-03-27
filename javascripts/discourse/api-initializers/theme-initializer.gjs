@@ -16,6 +16,8 @@ export default apiInitializer("topic-timer-to-top", (api) => {
 
   if (hideBottom) {
     api.modifyClass("component:topic-timer-info", {
+      pluginId: "topic-timer-to-top",
+    
       didInsertElement() {
         if (!this.element.closest(".custom-topic-timer-top")) {
           this.element.remove();
