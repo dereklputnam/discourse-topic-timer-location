@@ -1,4 +1,5 @@
 import { apiInitializer } from "discourse/lib/api";
+import { registerHelper } from "discourse-common/lib/helpers";
 import TopicTimerInfo from "discourse/components/topic-timer-info";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
@@ -11,14 +12,14 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     ? settings.allowed_category_ids.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id))
     : [];
 
-  // Function to check if a category is allowed
-  const isAllowedCategory = (topicCategoryId) => {
+  // Register a helper to check if a category is allowed
+  registerHelper('isAllowedCategory', (categoryId) => {
     // If no category IDs specified, allow all categories
     if (allowedCategoryIds.length === 0) return true;
     
     // Check if topic's category ID is in the allowed list
-    return allowedCategoryIds.includes(topicCategoryId);
-  };
+    return allowedCategoryIds.includes(categoryId);
+  });
 
   if (renderTopTimer) {
     api.renderInOutlet("topic-above-posts", <template>
@@ -47,7 +48,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         
         // Only remove if not in top location and not in allowed categories
         if (!this.element.closest(".custom-topic-timer-top") && 
-            !isAllowedCategory(topicCategoryId)) {
+            !this.isAllowedCategory(topicCategoryId)) {
           this.element.remove();
         }
       },
