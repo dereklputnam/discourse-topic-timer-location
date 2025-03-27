@@ -3,14 +3,13 @@ import TopicTimerInfo from "discourse/components/topic-timer-info";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
   const displayLocation = settings.display_location;
-  const renderTopTimer = displayLocation === "top" || displayLocation === "both";
-  const removeBottomTimer = displayLocation === "top";
+  const renderTopTimer = displayLocation === "Top" || displayLocation === "Both";
+  const removeBottomTimer = displayLocation === "Top";
 
   if (renderTopTimer) {
     api.renderInOutlet("topic-above-posts", <template>
       {{#if @outletArgs.model.topic_timer}}
         <div class="custom-topic-timer-top">
-          <span class="timer-icon">🕒</span>
           <TopicTimerInfo
             @topicClosed={{@outletArgs.model.closed}}
             @statusType={{@outletArgs.model.topic_timer.status_type}}
