@@ -7,33 +7,30 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   const hideBottom = displayLocation === "Top";
 
   if (showTop) {
-    api.renderInOutlet("topic-above-posts", (outletArgs) => {
-      const topic = outletArgs?.model;
-      const categoryId = topic?.category_id;
-
-      if (
-        settings.enabled_category_ids?.length &&
-        (!categoryId || !settings.enabled_category_ids.includes(categoryId))
-      ) {
-        return null; // ✅ Skip rendering
-      }
-
-      return api.hbs`
-        {{#if @outletArgs.model.topic_timer}}
-          <div class="custom-topic-timer-top">
-            <TopicTimerInfo
-              @topicClosed={{@outletArgs.model.closed}}
-              @statusType={{@outletArgs.model.topic_timer.status_type}}
-              @statusUpdate={{@outletArgs.model.topic_status_update}}
-              @executeAt={{@outletArgs.model.topic_timer.execute_at}}
-              @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
-              @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
-              @categoryId={{@outletArgs.model.topic_timer.category_id}}
-            />
-          </div>
-        {{/if}}
-      `;
-    });
+    // ✅ Use renderInOutlet with <template>, no return
+    api.renderInOutlet("topic-above-posts", <template>
+      {{#if
+        (and
+          @outletArgs.model.topic_timer
+          (or
+            (not (settings.enabled_category_ids.length))
+            (includes settings.enabled_category_ids @outletArgs.model.category_id)
+          )
+        )
+      }}
+        <div class="custom-topic-timer-top">
+          <TopicTimerInfo
+            @topicClosed={{@outletArgs.model.closed}}
+            @statusType={{@outletArgs.model.topic_timer.status_type}}
+            @statusUpdate={{@outletArgs.model.topic_status_update}}
+            @executeAt={{@outletArgs.model.topic_timer.execute_at}}
+            @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
+            @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
+            @categoryId={{@outletArgs.model.topic_timer.category_id}}
+          />
+        </div>
+      {{/if}}
+    </template>);
   }
 
   if (hideBottom) {
