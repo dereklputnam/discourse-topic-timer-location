@@ -57,13 +57,14 @@ if (settings.link_to_parent_category) {
         }
 
         const href = categoryLink.getAttribute("href");
-        const match = href.match(/\/c\/([^\/]+)\/(\d+)/);
+        const match = href.match(/\/c\/(.+)\/(\d+)/);
         if (!match) {
           console.log(`[${i}] Skipping: href did not match expected format`, href);
           return;
         }
 
-        const slug = match[1];
+        const fullSlug = match[1]; // may be "usercube/announcements"
+        const slug = fullSlug.split("/").pop(); // just "announcements"
         const id = parseInt(match[2], 10);
         const siteCategories = api.container.lookup("site:main").categories;
 
