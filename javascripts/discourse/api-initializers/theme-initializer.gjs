@@ -1,15 +1,15 @@
 import { apiInitializer } from "discourse/lib/api";
+import TopicTimerInfo from "discourse/components/topic-timer-info";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
   const displayLocation = settings.display_location;
-  const showTop = displayLocation === "Top" || displayLocation === "Both";
-  const hideBottom = displayLocation === "Top";
+  const renderTopTimer = displayLocation === "Top" || displayLocation === "Both";
+  const removeBottomTimer = displayLocation === "Top";
 
-  if (showTop) {
-    // ✅ Call directly — do not wrap in return!
+  if (renderTopTimer) {
     api.renderInOutlet("topic-above-posts", <template>
       {{#if @outletArgs.model.topic_timer}}
-        <div class="custom-topic-timer-top" data-category-id={{@outletArgs.model.category_id}}>
+        <div class="custom-topic-timer-top">
           <TopicTimerInfo
             @topicClosed={{@outletArgs.model.closed}}
             @statusType={{@outletArgs.model.topic_timer.status_type}}
@@ -22,25 +22,10 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         </div>
       {{/if}}
     </template>);
-
-    // ✅ Category filtering using DOM after render
-    if (settings.enabled_category_ids?.length) {
-      api.onPageChange(() => {
-        requestAnimationFrame(() => {
-          document.querySelectorAll(".custom-topic-timer-top").forEach((el) => {
-            const id = parseInt(el.dataset.categoryId, 10);
-            if (!settings.enabled_category_ids.includes(id)) {
-              el.remove();
-            }
-          });
-        });
-      });
-    }
   }
 
-  if (hideBottom) {
+  if (removeBottomTimer) {
     api.modifyClass("component:topic-timer-info", {
-      pluginId: "topic-timer-to-top",
       didInsertElement() {
         if (!this.element.closest(".custom-topic-timer-top")) {
           this.element.remove();
@@ -52,7 +37,9 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   if (settings.use_parent_for_link) {
     api.onPageChange(() => {
       requestAnimationFrame(() => {
-        document.querySelectorAll(".topic-timer-info").forEach((el) => {
+        const allTimers = document.querySelectorAll(".topic-timer-info");
+
+        allTimers.forEach((el) => {
           const text = el.textContent?.trim();
           if (!text?.includes("will be published to")) return;
 
@@ -63,13 +50,15 @@ export default apiInitializer("topic-timer-to-top", (api) => {
           const match = href.match(/\/c\/(.+)\/(\d+)/);
           if (!match) return;
 
-          const slug = match[1].split("/").pop();
+          const fullSlug = match[1];
+          const slug = fullSlug.split("/").pop();
           const id = parseInt(match[2], 10);
-          const cats = api.container.lookup("site:main").categories;
-          const cat = cats.find((c) => c.id === id && c.slug === slug);
-          if (!cat?.parent_category_id) return;
+          const siteCategories = api.container.lookup("site:main").categories;
 
-          const parent = cats.find((c) => c.id === cat.parent_category_id);
+          const category = siteCategories.find((cat) => cat.id === id && cat.slug === slug);
+          if (!category?.parent_category_id) return;
+
+          const parent = siteCategories.find((cat) => cat.id === category.parent_category_id);
           if (!parent) return;
 
           categoryLink.textContent = `#${parent.slug}`;
