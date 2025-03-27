@@ -5,6 +5,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   const showTop = settings.display_location === "top" || settings.display_location === "both";
   const showBottom = settings.display_location === "bottom" || settings.display_location === "both";
 
+  // Renders the timer at the top of the topic if enabled
   if (showTop) {
     api.renderInOutlet("topic-above-posts", <template>
       {{#if @outletArgs.model.topic_timer}}
@@ -23,7 +24,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     </template>);
   }
 
-  // Hide the bottom one if needed
+  // Hides the bottom version if needed
   if (!showBottom) {
     api.modifyClass("component:topic-timer-info", {
       didInsertElement() {
@@ -34,49 +35,32 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     });
   }
 
-  // Override the category link if enabled
+  // DOM-based patch to override the category link to the parent
   if (settings.link_to_parent_category) {
-    api.modifyClass("component:topic-timer-info", {
-      pluginId: "topic-timer-to-top",
+    api.onPageChange(() => {
+      requestAnimationFrame(() => {
+        const allTimers = document.querySelectorAll(".topic-timer-info");
 
-      get computedCategory() {
-        const categoryId = this.args.categoryId;
-        if (!categoryId) return null;
+        allTimers.forEach((el) => {
+          const text = el.textContent?.trim();
+          if (!text?.includes("will be published to")) return;
 
-        const category = this.site.categories.find((c) => c.id === categoryId);
-        if (category?.parent_category_id) {
-          return this.site.categories.find((c) => c.id === category.parent_category_id) || category;
-        }
+          const categoryLink = el.querySelector("a[href*='/c/']");
+          if (!categoryLink) return;
 
-        return category;
-      },
+          const categorySlug = categoryLink.getAttribute("href").split("/c/")[1]?.split("/")[0];
+          const siteCategories = api.container.lookup("site:main").categories;
 
-      get message() {
-        let key;
-        switch (this.args.statusType) {
-          case 1:
-            key = "topic_timer.close_scheduled";
-            break;
-          case 2:
-            key = "topic_timer.open_scheduled";
-            break;
-          case 3:
-            key = "topic_timer.delete_scheduled";
-            break;
-          case 4:
-            key = "topic_timer.publish_scheduled";
-            break;
-          default:
-            return;
-        }
+          const matched = siteCategories.find((cat) => cat.slug === categorySlug);
+          if (!matched?.parent_category_id) return;
 
-        return this.intl.t(key, {
-          duration_minutes: this.args.durationMinutes,
-          execute_at: this.args.executeAt,
-          based_on_last_post: this.args.basedOnLastPost,
-          category: this.computedCategory,
+          const parent = siteCategories.find((cat) => cat.id === matched.parent_category_id);
+          if (!parent) return;
+
+          categoryLink.textContent = `#${parent.slug}`;
+          categoryLink.setAttribute("href", `/c/${parent.slug}/${parent.id}`);
         });
-      },
+      });
     });
   }
 });
