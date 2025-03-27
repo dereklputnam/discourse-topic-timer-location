@@ -7,7 +7,7 @@ display_location:
     - Both
   description: "Where should the topic timer appear?"
 
-link_to_parent_category:
+use_parent_for_link:
   type: bool
   default: false
-  description: "Use parent category link for publish timers?"
+  description: "Use parent name for category link in topic timer banner?"
