@@ -7,11 +7,14 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   const hideBottom = displayLocation === "Top";
 
   if (showTop) {
+    // ✅ Register the outlet, and use a gate function
+    api.includePostAttributes("category_id");
+
     api.renderInOutlet("topic-above-posts", (outletArgs) => {
       const topic = outletArgs?.model;
       const categoryId = topic?.category_id;
 
-      // ✅ Category filtering handled here
+      // ✅ JS filter for enabled categories
       if (
         settings.enabled_category_ids?.length &&
         (!categoryId || !settings.enabled_category_ids.includes(categoryId))
@@ -19,23 +22,11 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         return null;
       }
 
-      // ✅ Only render if there's a topic timer
-      if (!topic?.topic_timer) return null;
-
-      // ✅ Glimmer-safe template with no logic
-      return api.hbs`
-        <div class="custom-topic-timer-top">
-          <TopicTimerInfo
-            @topicClosed={{@outletArgs.model.closed}}
-            @statusType={{@outletArgs.model.topic_timer.status_type}}
-            @statusUpdate={{@outletArgs.model.topic_status_update}}
-            @executeAt={{@outletArgs.model.topic_timer.execute_at}}
-            @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
-            @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
-            @categoryId={{@outletArgs.model.topic_timer.category_id}}
-          />
-        </div>
-      `;
+      // ✅ Template version (no logic inside)
+      return {
+        template: "topic-timer-top",
+        outletArgs,
+      };
     });
   }
 
