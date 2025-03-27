@@ -23,26 +23,21 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   };
 
   if (renderTopTimer) {
-    api.renderInOutlet("topic-above-posts", (outletArgs) => {
-      const model = outletArgs.model;
-      
-      // Only show if topic has a timer and category is enabled
-      if (model.topic_timer && isCategoryEnabled(model.category?.id)) {
-        return api.h('div.custom-topic-timer-top', 
-          api.h(TopicTimerInfo, {
-            topicClosed: model.closed,
-            statusType: model.topic_timer.status_type,
-            statusUpdate: model.topic_status_update,
-            executeAt: model.topic_timer.execute_at,
-            basedOnLastPost: model.topic_timer.based_on_last_post,
-            durationMinutes: model.topic_timer.duration_minutes,
-            categoryId: model.topic_timer.category_id
-          })
-        );
-      }
-      
-      return null;
-    });
+    api.renderInOutlet("topic-above-posts", <template>
+      {{#if @outletArgs.model.topic_timer}}
+        <div class="custom-topic-timer-top">
+          <TopicTimerInfo
+            @topicClosed={{@outletArgs.model.closed}}
+            @statusType={{@outletArgs.model.topic_timer.status_type}}
+            @statusUpdate={{@outletArgs.model.topic_status_update}}
+            @executeAt={{@outletArgs.model.topic_timer.execute_at}}
+            @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
+            @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
+            @categoryId={{@outletArgs.model.topic_timer.category_id}}
+          />
+        </div>
+      {{/if}}
+    </template>);
   }
 
   if (removeBottomTimer) {
@@ -58,7 +53,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
             this.element.remove();
           }
         }
-      }
+      },
     });
   }
 
