@@ -8,20 +8,22 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   if (showTop) {
     api.renderInOutlet("topic-above-posts", (outletArgs) => {
       const topic = outletArgs?.model;
-      const hasTimer = !!topic?.topic_timer;
       const categoryId = topic?.category_id;
-      const categoryAllowed =
-        !settings.enabled_category_ids?.length ||
+
+      // ✅ Filter categories in JS, before rendering the template
+      const shouldRenderTimer =
+        settings.enabled_category_ids?.length === 0 ||
         settings.enabled_category_ids.includes(categoryId);
 
-      if (!hasTimer || !categoryAllowed) {
-        return;
-      }
+      if (!shouldRenderTimer || !topic?.topic_timer) return null;
 
+      // ✅ Render the template
       return (
-        <div class="custom-topic-timer-top">
-          <topic-timer-info />
-        </div>
+        <template>
+          <div class="custom-topic-timer-top">
+            <topic-timer-info />
+          </div>
+        </template>
       );
     });
   }
