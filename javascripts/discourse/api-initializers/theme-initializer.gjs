@@ -1,30 +1,29 @@
 import { apiInitializer } from "discourse/lib/api";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
-  // ✅ Show timer only if top or both is selected
+  // ✅ Render timer at top only if "top" or "both"
   if (["top", "both"].includes(settings.display_location)) {
-    api.decorateWidget("topic-above-posts:after", (helper) => {
-      const topic = helper.getModel();
-
-      // If there's a timer, render the default component
-      if (topic?.topic_timer) {
-        return helper.attach("topic-timer-info", {});
-      }
-    });
+    api.renderInOutlet("topic-above-posts", <template>
+      {{#if @outletArgs.model.topic_timer}}
+        <div class="custom-topic-timer-top">
+          <topic-timer-info />
+        </div>
+      {{/if}}
+    </template>);
   }
 
-  // ✅ Remove bottom version if top-only
+  // ✅ Remove bottom if "top" only
   if (settings.display_location === "top") {
     api.modifyClass("component:topic-timer-info", {
       didInsertElement() {
-        if (!this.element.closest(".topic-above-posts")) {
+        if (!this.element.closest(".custom-topic-timer-top")) {
           this.element.remove();
         }
       },
     });
   }
 
-  // ✅ DOM patch to override text and parent category
+  // ✅ Patch label and parent category link after render
   if (settings.link_to_parent_category || settings.topic_label_override) {
     api.onPageChange(() => {
       requestAnimationFrame(() => {
@@ -32,7 +31,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
           const text = el.textContent?.trim();
           if (!text?.includes("will be published to")) return;
 
-          // Override "This topic"
+          // Label override
           if (settings.topic_label_override) {
             el.innerHTML = el.innerHTML.replace(
               /\bThis topic\b/i,
@@ -40,7 +39,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
             );
           }
 
-          // Swap to parent category
+          // Parent category link override
           if (settings.link_to_parent_category) {
             const link = el.querySelector("a[href*='/c/']");
             if (!link) return;
