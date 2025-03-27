@@ -73,8 +73,34 @@ export default apiInitializer("topic-timer-to-top", (api) => {
           const newTopContainer = document.createElement("div");
           newTopContainer.className = "custom-topic-timer-top";
           
-          // Clone the timer content
+          // Clone the timer content with edit/trash icons preserved
           const clonedTimer = bottomTimer.cloneNode(true);
+          
+          // Ensure the edit/trash icons are enabled and visible in the cloned timer
+          const bottomButtons = bottomTimer.querySelectorAll('.d-icon-pencil-alt, .d-icon-trash-alt, button.btn-flat');
+          const clonedButtons = clonedTimer.querySelectorAll('.d-icon-pencil-alt, .d-icon-trash-alt, button.btn-flat');
+          
+          // If originals have event listeners, we need to ensure cloned ones work too
+          if (bottomButtons.length > 0) {
+            // We'll recreate the buttons to ensure they work
+            Array.from(clonedButtons).forEach((btn, i) => {
+              if (btn.parentNode.tagName === 'BUTTON') {
+                const originalBtn = bottomButtons[i].parentNode;
+                const newBtn = originalBtn.cloneNode(true);
+                
+                // Add click handler to delegate to the original button
+                newBtn.addEventListener('click', function(e) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  originalBtn.click();
+                });
+                
+                // Replace the cloned button with our enhanced version
+                btn.parentNode.replaceWith(newBtn);
+              }
+            });
+          }
+          
           newTopContainer.appendChild(clonedTimer);
           
           // Insert before posts
