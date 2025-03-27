@@ -11,29 +11,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     ? settings.allowed_category_ids.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id))
     : [];
 
-  if (renderTopTimer) {
-    api.renderInOutlet("topic-above-posts", <template>
-      {{#let (fn isAllowedCategory @outletArgs.model.category.id) as |categoryAllowed|}}
-        {{#if @outletArgs.model.topic_timer}}
-          {{#if categoryAllowed}}
-            <div class="custom-topic-timer-top">
-              <TopicTimerInfo
-                @topicClosed={{@outletArgs.model.closed}}
-                @statusType={{@outletArgs.model.topic_timer.status_type}}
-                @statusUpdate={{@outletArgs.model.topic_status_update}}
-                @executeAt={{@outletArgs.model.topic_timer.execute_at}}
-                @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
-                @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
-                @categoryId={{@outletArgs.model.topic_timer.category_id}}
-              />
-            </div>
-          {{/if}}
-        {{/if}}
-      {{/let}}
-    </template>);
-  }
-
-  // Add the isAllowedCategory function to the window or api context
+  // Function to check if a category is allowed
   const isAllowedCategory = (topicCategoryId) => {
     // If no category IDs specified, allow all categories
     if (allowedCategoryIds.length === 0) return true;
@@ -41,6 +19,26 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     // Check if topic's category ID is in the allowed list
     return allowedCategoryIds.includes(topicCategoryId);
   };
+
+  if (renderTopTimer) {
+    api.renderInOutlet("topic-above-posts", <template>
+      {{#if @outletArgs.model.topic_timer}}
+        {{#if (isAllowedCategory @outletArgs.model.category.id)}}
+          <div class="custom-topic-timer-top">
+            <TopicTimerInfo
+              @topicClosed={{@outletArgs.model.closed}}
+              @statusType={{@outletArgs.model.topic_timer.status_type}}
+              @statusUpdate={{@outletArgs.model.topic_status_update}}
+              @executeAt={{@outletArgs.model.topic_timer.execute_at}}
+              @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
+              @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
+              @categoryId={{@outletArgs.model.topic_timer.category_id}}
+            />
+          </div>
+        {{/if}}
+      {{/if}}
+    </template>);
+  }
 
   if (removeBottomTimer) {
     api.modifyClass("component:topic-timer-info", {
