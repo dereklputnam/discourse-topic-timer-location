@@ -11,9 +11,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     .split("|")
     .map((id) => parseInt(id, 10))
     .filter((id) => id);
-  
-  console.log("Topic Timer Location: Enabled categories:", enabledCategories);
-  
+    
   // Helper function to check if a category is enabled
   const isCategoryEnabled = (categoryId) => {
     // If no categories are specified, apply to all
