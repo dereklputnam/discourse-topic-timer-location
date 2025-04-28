@@ -19,3 +19,7 @@
     color: var(--primary);
   }
 }
+
+body[data-topic-timer-location="Top"] .topic-status-info .topic-timer-info {
+  display: none !important;
+}
