@@ -45,6 +45,10 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     if (!match) return;
     const slug = match[1].split("/").pop();
     const id = parseInt(match[2], 10);
+    
+    // Check if this category is enabled in settings
+    if (!isCategoryEnabled(id)) return;
+    
     const site = api.container.lookup("site:main");
     const category = site.categories.find(cat => cat.id === id && cat.slug === slug);
     if (!category?.parent_category_id) return;
