@@ -22,48 +22,30 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     return enabledCategories.includes(categoryId);
   };
 
-  // Helper function to get display name for a category
-  const getDisplayName = (categoryId) => {
-    if (!categoryId) return "";
+  // Helper to get parent category name
+  const getParentCategoryName = (categoryId) => {
+    if (!categoryId) return null;
     const site = api.container.lookup("site:main");
     const category = site.categories.find(c => c.id === categoryId);
-    if (!category) return "";
-    if (category.parent_category_id) {
-      const parent = site.categories.find(c => c.id === category.parent_category_id);
-      if (parent) {
-        return `${parent.name} ${category.name}`;
-      }
-    }
-    return category.name;
+    if (!category?.parent_category_id) return null;
+    const parent = site.categories.find(c => c.id === category.parent_category_id);
+    return parent ? parent.name : null;
   };
 
   // Override the timer text computation
   api.modifyClass("component:topic-timer-info", {
     pluginId: "topic-timer-location",
     
-    // Override the text computation method
     _computeText() {
       const result = this._super(...arguments);
-      
-      // Only modify text for publishing timers
       if (!result?.includes("will be published to")) {
         return result;
       }
-      
-      // Get the category ID from the model
       const categoryId = this.categoryId;
-      if (!categoryId) return result;
-      
-      // Look up the category and its parent
-      const site = api.container.lookup("site:main");
-      const category = site.categories.find(c => c.id === categoryId);
-      if (!category?.parent_category_id) return result;
-      
-      const parent = site.categories.find(c => c.id === category.parent_category_id);
-      if (!parent) return result;
-      
-      // Replace the category name with the parent name
-      return result.replace(/#[^ ]+/, parent.name);
+      const parentName = getParentCategoryName(categoryId);
+      if (!parentName) return result;
+      // Replace the inner text of the <a> with the parent category name
+      return result.replace(/(<a [^>]+>)([^<]+)(<\/a>)/, `$1${parentName}$3`);
     }
   });
 
