@@ -79,17 +79,19 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   if (renderTopTimer) {
     api.renderInOutlet("topic-above-posts", <template>
       {{#if @outletArgs.model.topic_timer}}
-        <div class="custom-topic-timer-top">
-          <TopicTimerInfo
-            @topicClosed={{@outletArgs.model.closed}}
-            @statusType={{@outletArgs.model.topic_timer.status_type}}
-            @statusUpdate={{@outletArgs.model.topic_status_update}}
-            @executeAt={{@outletArgs.model.topic_timer.execute_at}}
-            @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
-            @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
-            @categoryId={{@outletArgs.model.topic_timer.category_id}}
-          />
-        </div>
+        {{#if (isCategoryEnabled @outletArgs.model.category.id)}}
+          <div class="custom-topic-timer-top">
+            <TopicTimerInfo
+              @topicClosed={{@outletArgs.model.closed}}
+              @statusType={{@outletArgs.model.topic_timer.status_type}}
+              @statusUpdate={{@outletArgs.model.topic_status_update}}
+              @executeAt={{@outletArgs.model.topic_timer.execute_at}}
+              @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
+              @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
+              @categoryId={{@outletArgs.model.topic_timer.category_id}}
+            />
+          </div>
+        {{/if}}
       {{/if}}
     </template>);
   }
@@ -105,11 +107,10 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         if (!topicController?.model) return;
         
         const categoryId = topicController.model.category?.id;
-        const categoryIdNum = parseInt(categoryId, 10);
+        if (!categoryId) return;
         
         // Only apply to enabled categories
-        const shouldApply = enabledCategories.length === 0 || enabledCategories.includes(categoryIdNum);
-        if (!shouldApply) return;
+        if (!isCategoryEnabled(parseInt(categoryId, 10))) return;
         
         // If this is the bottom timer (not in custom container) and display mode is "Top", hide it
         if (displayLocation === "Top" && !this.element.closest(".custom-topic-timer-top")) {
