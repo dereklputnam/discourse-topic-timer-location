@@ -8,6 +8,7 @@
       @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
       @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
       @categoryId={{@outletArgs.model.topic_timer.category_id}}
+      @displayName={{this.computeDisplayName @outletArgs.model.topic_timer.category_id}}
     />
   </div>
 {{/if}}

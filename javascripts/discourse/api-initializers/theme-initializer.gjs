@@ -34,11 +34,29 @@ export default apiInitializer("topic-timer-to-top", (api) => {
             @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
             @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
             @categoryId={{@outletArgs.model.topic_timer.category_id}}
+            @displayName={{this.computeDisplayName @outletArgs.model.topic_timer.category_id}}
           />
         </div>
       {{/if}}
     </template>);
   }
+
+  // Helper function to compute the display name for the timer
+  api.modifyClass("component:topic-timer-info", {
+    computeDisplayName(categoryId) {
+      if (!categoryId) return "";
+      const site = api.container.lookup("site:main");
+      const category = site.categories.find(c => c.id === categoryId);
+      if (!category) return "";
+      if (category.parent_category_id) {
+        const parent = site.categories.find(c => c.id === category.parent_category_id);
+        if (parent) {
+          return `${parent.name} ${category.name}`;
+        }
+      }
+      return category.name;
+    }
+  });
 
   // Additional cleanup for bottom timer when in "Top" mode
   if (removeBottomTimer) {
