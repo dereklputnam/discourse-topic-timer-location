@@ -37,33 +37,35 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     return category.name;
   };
 
-  // Function to update timer text
-  const updateTimerText = (timerElement) => {
-    const text = timerElement.textContent;
-    if (!text?.includes("will be published to")) return;
-
-    const categoryLink = timerElement.querySelector("a[href*='/c/']");
-    if (!categoryLink) return;
-
-    const href = categoryLink.getAttribute("href");
-    const match = href.match(/\/c\/(.+)\/(\d+)/);
-    if (!match) return;
-
-    const fullSlug = match[1];
-    const slug = fullSlug.split("/").pop();
-    const id = parseInt(match[2], 10);
-
-    const site = api.container.lookup("site:main");
-    const category = site.categories.find(cat => cat.id === id && cat.slug === slug);
-    if (!category?.parent_category_id) return;
-
-    const parent = site.categories.find(cat => cat.id === category.parent_category_id);
-    if (!parent) return;
-
-    // Replace the category name in the text
-    const newText = text.replace(/#[^ ]+/, parent.name);
-    timerElement.textContent = newText;
-  };
+  // Override the timer text computation
+  api.modifyClass("component:topic-timer-info", {
+    pluginId: "topic-timer-location",
+    
+    // Override the text computation method
+    _computeText() {
+      const result = this._super(...arguments);
+      
+      // Only modify text for publishing timers
+      if (!result?.includes("will be published to")) {
+        return result;
+      }
+      
+      // Get the category ID from the model
+      const categoryId = this.categoryId;
+      if (!categoryId) return result;
+      
+      // Look up the category and its parent
+      const site = api.container.lookup("site:main");
+      const category = site.categories.find(c => c.id === categoryId);
+      if (!category?.parent_category_id) return result;
+      
+      const parent = site.categories.find(c => c.id === category.parent_category_id);
+      if (!parent) return result;
+      
+      // Replace the category name with the parent name
+      return result.replace(/#[^ ]+/, parent.name);
+    }
+  });
 
   if (renderTopTimer) {
     api.renderInOutlet("topic-above-posts", <template>
@@ -107,24 +109,6 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       },
     });
   }
-
-  // Set up mutation observer to catch when timers are added to the DOM
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      mutation.addedNodes.forEach((node) => {
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          const timers = node.querySelectorAll(".topic-timer-info");
-          timers.forEach(updateTimerText);
-        }
-      });
-    });
-  });
-
-  // Start observing the document body for changes
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
 
   // Set a body data attribute for CSS targeting
   document.body.setAttribute("data-topic-timer-location", settings.display_location);
