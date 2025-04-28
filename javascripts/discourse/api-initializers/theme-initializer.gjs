@@ -36,18 +36,26 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   function updateTimerLinkText(timerEl) {
     // Only update if this is a publish timer
     if (!timerEl.textContent.includes("will be published to")) return;
+    
+    // Get the current category ID from the topic
+    const topicController = api.container.lookup("controller:topic");
+    if (!topicController?.model?.category?.id) return;
+    
+    const currentCategoryId = parseInt(topicController.model.category.id, 10);
+    
+    // Check if current category is enabled in settings
+    if (!isCategoryEnabled(currentCategoryId)) return;
+    
     // Find the link
     const link = timerEl.querySelector("a[href*='/c/']");
     if (!link) return;
+    
     // Get category id from the link href
     const href = link.getAttribute("href");
     const match = href.match(/\/c\/(.+)\/(\d+)/);
     if (!match) return;
     const slug = match[1].split("/").pop();
     const id = parseInt(match[2], 10);
-    
-    // Check if this category is enabled in settings
-    if (!isCategoryEnabled(id)) return;
     
     const site = api.container.lookup("site:main");
     const category = site.categories.find(cat => cat.id === id && cat.slug === slug);
