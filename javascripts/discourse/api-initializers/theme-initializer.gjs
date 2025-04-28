@@ -32,22 +32,45 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     return parent ? parent.name : null;
   };
 
-  // Override the timer text computation
-  api.modifyClass("component:topic-timer-info", {
-    pluginId: "topic-timer-location",
-    
-    _computeText() {
-      const result = this._super(...arguments);
-      if (!result?.includes("will be published to")) {
-        return result;
-      }
-      const categoryId = this.categoryId;
-      const parentName = getParentCategoryName(categoryId);
-      if (!parentName) return result;
-      // Replace the inner text of the <a> with the parent category name
-      return result.replace(/(<a [^>]+>)([^<]+)(<\/a>)/, `$1${parentName}$3`);
+  // DOM manipulation: update only the link text in the timer
+  function updateTimerLinkText(timerEl) {
+    // Only update if this is a publish timer
+    if (!timerEl.textContent.includes("will be published to")) return;
+    // Find the link
+    const link = timerEl.querySelector("a[href*='/c/']");
+    if (!link) return;
+    // Get category id from the link href
+    const href = link.getAttribute("href");
+    const match = href.match(/\/c\/(.+)\/(\d+)/);
+    if (!match) return;
+    const slug = match[1].split("/").pop();
+    const id = parseInt(match[2], 10);
+    const site = api.container.lookup("site:main");
+    const category = site.categories.find(cat => cat.id === id && cat.slug === slug);
+    if (!category?.parent_category_id) return;
+    const parent = site.categories.find(cat => cat.id === category.parent_category_id);
+    if (!parent) return;
+    // Only update if the link text is not already the parent name
+    if (link.textContent !== parent.name) {
+      link.textContent = parent.name;
     }
+  }
+
+  // Observe for timer elements
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          if (node.classList.contains("topic-timer-info")) {
+            updateTimerLinkText(node);
+          } else {
+            node.querySelectorAll && node.querySelectorAll(".topic-timer-info").forEach(updateTimerLinkText);
+          }
+        }
+      });
+    });
   });
+  observer.observe(document.body, { childList: true, subtree: true });
 
   if (renderTopTimer) {
     api.renderInOutlet("topic-above-posts", <template>
