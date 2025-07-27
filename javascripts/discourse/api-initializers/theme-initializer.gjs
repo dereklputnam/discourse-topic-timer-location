@@ -161,68 +161,115 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   // Set a body data attribute for CSS targeting
   document.body.setAttribute("data-topic-timer-location", settings.display_location);
   
-  // Proactive timer data fetching
-  const fetchQueue = new Set();
+  // Enhanced timer data fetching - category-specific approach
+  const fetchQueue = new Map(); // topicId -> categoryId mapping
   let fetchTimeout = null;
   
-  function fetchTopicTimerData(topicIds) {
-    if (topicIds.length === 0) return;
+  function fetchCategoryTimerData(categoryId, topicIds) {
+    if (!isCategoryEnabled(categoryId) || topicIds.length === 0) return;
     
-    // Batch API calls to avoid overwhelming the server
-    const batchSize = 10;
+    const ajax = api.container.lookup('service:ajax');
+    if (!ajax) return;
+    
+    // Try category-specific endpoint first (if it exists)
+    ajax.request(`/c/${categoryId}.json`, {
+      type: 'GET',
+      cache: true
+    }).then(categoryData => {
+      // If category data includes topic timers, use that
+      if (categoryData.topic_list?.topics) {
+        const store = api.container.lookup('service:store');
+        categoryData.topic_list.topics.forEach(topicData => {
+          if (topicData.id && topicIds.includes(topicData.id) && topicData.topic_timer) {
+            try {
+              const topic = store?.peekRecord('topic', topicData.id);
+              if (topic) {
+                topic.set('topic_timer', topicData.topic_timer);
+              }
+            } catch (e) {
+              console.warn('Failed to update topic cache from category data:', e);
+            }
+          }
+        });
+        setTimeout(() => addTimerBadgesToTopicList(), 100);
+        return;
+      }
+      
+      // Fallback to individual topic fetching
+      fetchIndividualTopics(topicIds);
+    }).catch(() => {
+      // Category endpoint failed, fallback to individual topics
+      fetchIndividualTopics(topicIds);
+    });
+  }
+  
+  function fetchIndividualTopics(topicIds) {
+    const ajax = api.container.lookup('service:ajax');
+    if (!ajax) return;
+    
+    // Batch individual topic requests
+    const batchSize = 5; // Smaller batch size for individual requests
     const batches = [];
     for (let i = 0; i < topicIds.length; i += batchSize) {
       batches.push(topicIds.slice(i, i + batchSize));
     }
     
-    batches.forEach(batch => {
-      batch.forEach(topicId => {
-        // Use Discourse's ajax helper to fetch topic data
-        const ajax = api.container.lookup('service:ajax');
-        if (!ajax) return;
-        
-        ajax.request(`/t/${topicId}.json`, {
-          type: 'GET',
-          cache: true
-        }).then(data => {
-          if (data.topic_timer) {
-            // Store the timer data for later use
-            const store = api.container.lookup('service:store');
-            if (store) {
-              try {
-                // Update the cached topic with timer data
-                const topic = store.peekRecord('topic', topicId);
-                if (topic) {
-                  topic.set('topic_timer', data.topic_timer);
+    batches.forEach((batch, batchIndex) => {
+      // Stagger batch requests to be server-friendly
+      setTimeout(() => {
+        batch.forEach(topicId => {
+          ajax.request(`/t/${topicId}.json`, {
+            type: 'GET',
+            cache: true
+          }).then(data => {
+            if (data.topic_timer) {
+              const store = api.container.lookup('service:store');
+              if (store) {
+                try {
+                  const topic = store.peekRecord('topic', topicId);
+                  if (topic) {
+                    topic.set('topic_timer', data.topic_timer);
+                  }
+                } catch (e) {
+                  console.warn('Failed to update topic cache:', e);
                 }
-              } catch (e) {
-                console.warn('Failed to update topic cache:', e);
               }
+              setTimeout(() => addTimerBadgesToTopicList(), 100);
             }
-            
-            // Trigger badge update
-            setTimeout(() => addTimerBadgesToTopicList(), 100);
-          }
-        }).catch(error => {
-          // Silently handle API errors to avoid console spam
-          if (error.status !== 403 && error.status !== 404) {
-            console.warn('Failed to fetch topic timer data:', error);
-          }
+          }).catch(error => {
+            // Silently handle API errors for non-critical failures
+            if (error.status !== 403 && error.status !== 404 && error.status !== 429) {
+              console.warn('Failed to fetch topic timer data:', error);
+            }
+          });
         });
-      });
+      }, batchIndex * 200); // 200ms delay between batches
     });
   }
   
-  function queueTimerDataFetch(topicId) {
-    fetchQueue.add(topicId);
+  function queueTimerDataFetch(topicId, categoryId) {
+    fetchQueue.set(topicId, categoryId);
     
     // Debounce API calls
     if (fetchTimeout) clearTimeout(fetchTimeout);
     fetchTimeout = setTimeout(() => {
-      const ids = Array.from(fetchQueue);
+      const entries = Array.from(fetchQueue.entries());
       fetchQueue.clear();
-      fetchTopicTimerData(ids);
-    }, 500);
+      
+      // Group topics by category
+      const categoriesMap = new Map();
+      entries.forEach(([topicId, catId]) => {
+        if (!categoriesMap.has(catId)) {
+          categoriesMap.set(catId, []);
+        }
+        categoriesMap.get(catId).push(topicId);
+      });
+      
+      // Fetch by category
+      categoriesMap.forEach((topicIds, categoryId) => {
+        fetchCategoryTimerData(categoryId, topicIds);
+      });
+    }, 750); // Slightly longer debounce for better batching
   }
   
   // Simple approach: Add timer badges to topic lists using DOM manipulation
@@ -286,8 +333,13 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       
       // If we still don't have timer data, queue a fetch and skip for now
       if (!timerData) {
-        // Queue this topic for API fetching
-        queueTimerDataFetch(topicId);
+        // Get category ID for targeted fetching
+        const categoryId = topic?.category_id || 
+                          (row.querySelector('[data-category-id]')?.getAttribute('data-category-id'));
+        
+        if (categoryId && isCategoryEnabled(parseInt(categoryId))) {
+          queueTimerDataFetch(topicId, parseInt(categoryId));
+        }
         return;
       }
       
