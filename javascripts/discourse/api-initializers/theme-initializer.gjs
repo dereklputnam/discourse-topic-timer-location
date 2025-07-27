@@ -171,9 +171,55 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     const ajax = api.container.lookup('service:ajax');
     if (!ajax) return;
     
-    // Try category-specific endpoint first (if it exists)
+    // Method 1: Try admin topic timers endpoint (if user is admin)
+    const currentUser = api.getCurrentUser();
+    if (currentUser?.admin) {
+      ajax.request('/admin/topic_timers.json', {
+        type: 'GET',
+        data: { 
+          category_id: categoryId,
+          status_type: 'publish_to_category'
+        },
+        cache: true
+      }).then(timersData => {
+        if (timersData.topic_timers) {
+          const store = api.container.lookup('service:store');
+          timersData.topic_timers.forEach(timerData => {
+            if (topicIds.includes(timerData.topic_id)) {
+              try {
+                const topic = store?.peekRecord('topic', timerData.topic_id);
+                if (topic) {
+                  topic.set('topic_timer', timerData);
+                }
+              } catch (e) {
+                console.warn('Failed to update topic cache from admin data:', e);
+              }
+            }
+          });
+          setTimeout(() => addTimerBadgesToTopicList(), 100);
+          return;
+        }
+        
+        // Fallback to category endpoint
+        fetchCategoryEndpoint(categoryId, topicIds);
+      }).catch(() => {
+        // Admin endpoint failed, try category endpoint
+        fetchCategoryEndpoint(categoryId, topicIds);
+      });
+    } else {
+      // Not admin, try category endpoint directly
+      fetchCategoryEndpoint(categoryId, topicIds);
+    }
+  }
+  
+  function fetchCategoryEndpoint(categoryId, topicIds) {
+    const ajax = api.container.lookup('service:ajax');
+    if (!ajax) return;
+    
+    // Method 2: Enhanced category endpoint with timer parameter
     ajax.request(`/c/${categoryId}.json`, {
       type: 'GET',
+      data: { include_timers: true }, // Try requesting timer data
       cache: true
     }).then(categoryData => {
       // If category data includes topic timers, use that
@@ -195,10 +241,51 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         return;
       }
       
-      // Fallback to individual topic fetching
+      // Method 3: Try search API with category filter
+      fetchTopicsViaSearch(categoryId, topicIds);
+    }).catch(() => {
+      // Category endpoint failed, try search API
+      fetchTopicsViaSearch(categoryId, topicIds);
+    });
+  }
+  
+  function fetchTopicsViaSearch(categoryId, topicIds) {
+    const ajax = api.container.lookup('service:ajax');
+    if (!ajax) return;
+    
+    // Method 4: Use search API to get topics with timer data
+    const searchQuery = `#${categoryId} status:open`;
+    ajax.request('/search.json', {
+      type: 'GET',
+      data: { 
+        q: searchQuery,
+        type_filter: 'topic',
+        include_blurbs: false
+      },
+      cache: true
+    }).then(searchData => {
+      if (searchData.topics) {
+        const store = api.container.lookup('service:store');
+        searchData.topics.forEach(topicData => {
+          if (topicIds.includes(topicData.id) && topicData.topic_timer) {
+            try {
+              const topic = store?.peekRecord('topic', topicData.id);
+              if (topic) {
+                topic.set('topic_timer', topicData.topic_timer);
+              }
+            } catch (e) {
+              console.warn('Failed to update topic cache from search data:', e);
+            }
+          }
+        });
+        setTimeout(() => addTimerBadgesToTopicList(), 100);
+        return;
+      }
+      
+      // Final fallback: individual topic requests
       fetchIndividualTopics(topicIds);
     }).catch(() => {
-      // Category endpoint failed, fallback to individual topics
+      // Search failed, fallback to individual topics
       fetchIndividualTopics(topicIds);
     });
   }
@@ -248,9 +335,16 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   }
   
   function queueTimerDataFetch(topicId, categoryId) {
+    // Check if preloading is enabled
+    if (!settings.preload_timer_data) {
+      return; // Skip if preloading is disabled
+    }
+    
     fetchQueue.set(topicId, categoryId);
     
-    // Debounce API calls
+    // Use configurable debounce timing
+    const debounceTime = Math.max(500, Math.min(2000, settings.timer_cache_duration * 0.1));
+    
     if (fetchTimeout) clearTimeout(fetchTimeout);
     fetchTimeout = setTimeout(() => {
       const entries = Array.from(fetchQueue.entries());
@@ -269,7 +363,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       categoriesMap.forEach((topicIds, categoryId) => {
         fetchCategoryTimerData(categoryId, topicIds);
       });
-    }, 750); // Slightly longer debounce for better batching
+    }, debounceTime);
   }
   
   // Simple approach: Add timer badges to topic lists using DOM manipulation

@@ -12,3 +12,15 @@ enabled_categories:
   list_type: category
   default: ""
   description: "Choose categories where the topic timer location will be modified. Leave empty to apply to all categories."
+
+preload_timer_data:
+  type: bool
+  default: true
+  description: "Attempt to preload topic timer data for enabled categories to show badges without requiring topic visits."
+
+timer_cache_duration:
+  type: integer
+  default: 300
+  min: 60
+  max: 3600
+  description: "How long (in seconds) to cache timer data before refreshing. Lower values show more up-to-date timers but increase server load."
