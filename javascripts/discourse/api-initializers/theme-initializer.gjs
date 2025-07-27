@@ -34,55 +34,85 @@ export default apiInitializer("topic-timer-to-top", (api) => {
 
   // DOM manipulation: update only the link text in the timer
   function updateTimerLinkText(timerEl) {
-    // Only update if this is a publish timer
-    if (!timerEl.textContent.includes("will be published to")) return;
-    
-    // Get the current category ID from the topic
-    const topicController = api.container.lookup("controller:topic");
-    if (!topicController?.model?.category?.id) return;
-    
-    const currentCategoryId = parseInt(topicController.model.category.id, 10);
-    
-    // Check if current category is enabled in settings
-    if (!isCategoryEnabled(currentCategoryId)) return;
-    
-    // Find the link
-    const link = timerEl.querySelector("a[href*='/c/']");
-    if (!link) return;
-    
-    // Get category id from the link href
-    const href = link.getAttribute("href");
-    const match = href.match(/\/c\/(.+)\/(\d+)/);
-    if (!match) return;
-    const slug = match[1].split("/").pop();
-    const id = parseInt(match[2], 10);
-    
-    const site = api.container.lookup("site:main");
-    const category = site.categories.find(cat => cat.id === id && cat.slug === slug);
-    if (!category?.parent_category_id) return;
-    const parent = site.categories.find(cat => cat.id === category.parent_category_id);
-    if (!parent) return;
-    // Only update if the link text is not already the parent name
-    if (link.textContent !== parent.name) {
-      link.textContent = parent.name;
+    try {
+      // Only update if this is a publish timer
+      if (!timerEl || !timerEl.textContent || !timerEl.textContent.includes("will be published to")) return;
+      
+      // Get the current category ID from the topic
+      const topicController = api.container.lookup("controller:topic");
+      if (!topicController?.model?.category?.id) return;
+      
+      const currentCategoryId = parseInt(topicController.model.category.id, 10);
+      
+      // Check if current category is enabled in settings
+      if (!isCategoryEnabled(currentCategoryId)) return;
+      
+      // Find the link
+      const link = timerEl.querySelector("a[href*='/c/']");
+      if (!link) return;
+      
+      // Get category id from the link href
+      const href = link.getAttribute("href");
+      if (!href) return;
+      
+      const match = href.match(/\/c\/(.+)\/(\d+)/);
+      if (!match || match.length < 3) return;
+      
+      const slug = match[1]?.split("/")?.pop();
+      const id = parseInt(match[2], 10);
+      if (!slug || isNaN(id)) return;
+      
+      const site = api.container.lookup("site:main");
+      if (!site?.categories) return;
+      
+      const category = site.categories.find(cat => cat.id === id && cat.slug === slug);
+      if (!category?.parent_category_id) return;
+      
+      const parent = site.categories.find(cat => cat.id === category.parent_category_id);
+      if (!parent?.name) return;
+      
+      // Only update if the link text is not already the parent name
+      if (link.textContent !== parent.name) {
+        link.textContent = parent.name;
+      }
+    } catch (error) {
+      // Silently handle any errors
+      console.warn("Timer link text update error:", error);
     }
   }
 
   // Observe for timer elements
   const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      mutation.addedNodes.forEach((node) => {
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          if (node.classList.contains("topic-timer-info")) {
-            updateTimerLinkText(node);
-          } else {
-            node.querySelectorAll && node.querySelectorAll(".topic-timer-info").forEach(updateTimerLinkText);
+    try {
+      mutations.forEach((mutation) => {
+        if (!mutation.addedNodes) return;
+        
+        mutation.addedNodes.forEach((node) => {
+          if (!node || node.nodeType !== Node.ELEMENT_NODE) return;
+          
+          try {
+            if (node.classList && node.classList.contains("topic-timer-info")) {
+              updateTimerLinkText(node);
+            } else if (node.querySelectorAll) {
+              const timerElements = node.querySelectorAll(".topic-timer-info");
+              timerElements.forEach(updateTimerLinkText);
+            }
+          } catch (nodeError) {
+            // Skip problematic nodes
+            console.warn("Node processing error:", nodeError);
           }
-        }
+        });
       });
-    });
+    } catch (error) {
+      console.warn("MutationObserver error:", error);
+    }
   });
-  observer.observe(document.body, { childList: true, subtree: true });
+  
+  try {
+    observer.observe(document.body, { childList: true, subtree: true });
+  } catch (error) {
+    console.warn("Failed to start MutationObserver:", error);
+  }
 
   if (renderTopTimer) {
     api.renderInOutlet("topic-above-posts", <template>
@@ -133,22 +163,39 @@ export default apiInitializer("topic-timer-to-top", (api) => {
 
   // Add timer info to topic list items
   api.decorateWidget("topic-list-item", (helper) => {
-    const topic = helper.attrs.topic;
-    
-    // Check if topic has a timer and it's enabled for this category
-    if (!topic?.topic_timer || 
-        topic.topic_timer.status_type !== "publish_to_category" ||
-        !isCategoryEnabled(topic.category_id)) {
-      return;
-    }
+    try {
+      const topic = helper?.attrs?.topic;
+      
+      // Comprehensive null safety checks
+      if (!topic || 
+          !topic.topic_timer || 
+          !topic.topic_timer.status_type ||
+          topic.topic_timer.status_type !== "publish_to_category" ||
+          !topic.category_id ||
+          !isCategoryEnabled(topic.category_id)) {
+        return null;
+      }
 
-    const executeTime = topic.topic_timer.execute_at;
-    if (!executeTime) return;
-    
-    // Format the time remaining
-    const timeFromNow = moment(executeTime).fromNow();
-    
-    // Create a simple timer badge
-    return helper.h("span.topic-timer-badge", timeFromNow);
+      const executeTime = topic.topic_timer.execute_at;
+      if (!executeTime) return null;
+      
+      // Ensure moment is available
+      if (typeof moment === 'undefined') return null;
+      
+      // Format the time remaining with error handling
+      let timeFromNow;
+      try {
+        timeFromNow = moment(executeTime).fromNow();
+      } catch (e) {
+        return null; // Skip if moment parsing fails
+      }
+      
+      // Create a simple timer badge
+      return helper.h("span.topic-timer-badge", timeFromNow);
+    } catch (error) {
+      // Silently handle any errors to prevent breaking the topic list
+      console.warn("Topic timer badge error:", error);
+      return null;
+    }
   });
 });
