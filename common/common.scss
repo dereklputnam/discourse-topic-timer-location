@@ -42,15 +42,32 @@ body[data-topic-timer-location="Top"] .topic-status-info .topic-timer-info {
 }
 
 // Make sure it displays well in different topic list contexts
-.topic-list-item .topic-timer-badge {
+.topic-list-item .topic-timer-badge,
+.header-topic-title-suffix-outlet .topic-timer-badge {
   vertical-align: middle;
+}
+
+// When in the header-topic-title-suffix-outlet alongside event dates
+.header-topic-title-suffix-outlet {
+  .topic-timer-badge {
+    margin-left: 8px;
+    
+    // If there's already an event date, add some spacing
+    .event-date + & {
+      margin-left: 12px;
+    }
+  }
 }
 
 // Mobile responsive
 @media screen and (max-width: 767px) {
   .topic-timer-badge {
-    display: block;
-    margin: 4px 0 0 0;
+    display: inline-block;
+    margin: 4px 0 0 6px;
     font-size: 0.7em;
+  }
+  
+  .header-topic-title-suffix-outlet .topic-timer-badge {
+    margin-left: 6px;
   }
 }

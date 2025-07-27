@@ -161,41 +161,19 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   // Set a body data attribute for CSS targeting
   document.body.setAttribute("data-topic-timer-location", settings.display_location);
 
-  // Add timer info to topic list items
-  api.decorateWidget("topic-list-item", (helper) => {
-    try {
-      const topic = helper?.attrs?.topic;
-      
-      // Comprehensive null safety checks
-      if (!topic || 
-          !topic.topic_timer || 
-          !topic.topic_timer.status_type ||
-          topic.topic_timer.status_type !== "publish_to_category" ||
-          !topic.category_id ||
-          !isCategoryEnabled(topic.category_id)) {
-        return null;
-      }
+  // Register helper for template use
+  api.registerTemplateHelper("isCategoryEnabled", isCategoryEnabled);
 
-      const executeTime = topic.topic_timer.execute_at;
-      if (!executeTime) return null;
-      
-      // Ensure moment is available
-      if (typeof moment === 'undefined') return null;
-      
-      // Format the time remaining with error handling
-      let timeFromNow;
-      try {
-        timeFromNow = moment(executeTime).fromNow();
-      } catch (e) {
-        return null; // Skip if moment parsing fails
-      }
-      
-      // Create a simple timer badge
-      return helper.h("span.topic-timer-badge", timeFromNow);
-    } catch (error) {
-      // Silently handle any errors to prevent breaking the topic list
-      console.warn("Topic timer badge error:", error);
-      return null;
-    }
-  });
+  // Add timer info to topic list items using the same outlet as Events plugin
+  api.renderInOutlet("header-topic-title-suffix", <template>
+    {{#if @outletArgs.topic.topic_timer}}
+      {{#if (eq @outletArgs.topic.topic_timer.status_type "publish_to_category")}}
+        {{#if (isCategoryEnabled @outletArgs.topic.category_id)}}
+          <span class="topic-timer-badge">
+            {{moment-from-now @outletArgs.topic.topic_timer.execute_at}}
+          </span>
+        {{/if}}
+      {{/if}}
+    {{/if}}
+  </template>);
 });
