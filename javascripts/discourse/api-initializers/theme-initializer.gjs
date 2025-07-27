@@ -161,6 +161,151 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   // Set a body data attribute for CSS targeting
   document.body.setAttribute("data-topic-timer-location", settings.display_location);
   
+  // Aggressive preloading for small categories
+  const preloadedCategories = new Set();
+  const timerDataCache = new Map(); // topicId -> timer data
+  let lastPreloadTime = 0;
+  
+  // Helper to get current category ID from the page
+  function getCurrentCategoryId() {
+    try {
+      // Try to get from discovery controller first
+      const discoveryController = api.container.lookup('controller:discovery');
+      if (discoveryController?.model?.category?.id) {
+        return parseInt(discoveryController.model.category.id, 10);
+      }
+      
+      // Fallback: try to extract from URL
+      const match = window.location.pathname.match(/\/c\/[^\/]+\/(\d+)/);
+      if (match && match[1]) {
+        return parseInt(match[1], 10);
+      }
+      
+      // Fallback: look for category data in DOM
+      const categoryElement = document.querySelector('[data-category-id]');
+      if (categoryElement) {
+        return parseInt(categoryElement.getAttribute('data-category-id'), 10);
+      }
+    } catch (e) {
+      console.warn('Failed to get current category ID:', e);
+    }
+    
+    return null;
+  }
+  
+  function aggressivelyPreloadCategory(categoryId) {
+    if (!isCategoryEnabled(categoryId)) return;
+    
+    const now = Date.now();
+    const cacheAge = now - lastPreloadTime;
+    const cacheLimit = (settings.timer_cache_duration || 60) * 1000;
+    
+    // Skip if we've preloaded recently
+    if (preloadedCategories.has(categoryId) && cacheAge < cacheLimit) {
+      console.log(`Category ${categoryId} already preloaded recently`);
+      return;
+    }
+    
+    console.log(`Aggressively preloading category ${categoryId}...`);
+    const ajax = api.container.lookup('service:ajax');
+    if (!ajax) return;
+    
+    // Fetch the full category topic list first
+    ajax.request(`/c/${categoryId}.json`, {
+      type: 'GET',
+      data: { 
+        order: 'created',
+        ascending: false,
+        page: 0,
+        per_page: 50 // Get more topics to be safe
+      },
+      cache: false // Always get fresh data
+    }).then(categoryData => {
+      console.log(`Category ${categoryId} has ${categoryData.topic_list?.topics?.length || 0} topics`);
+      
+      if (categoryData.topic_list?.topics) {
+        const topicIds = categoryData.topic_list.topics.map(t => t.id);
+        console.log(`Fetching individual timer data for ${topicIds.length} topics...`);
+        
+        // Fetch ALL topics individually and aggressively
+        topicIds.forEach((topicId, index) => {
+          setTimeout(() => {
+            ajax.request(`/t/${topicId}.json`, {
+              type: 'GET',
+              cache: false // Always get fresh timer data
+            }).then(topicData => {
+              if (topicData.topic_timer) {
+                console.log(`✓ Topic ${topicId} has timer:`, topicData.topic_timer.execute_at);
+                timerDataCache.set(topicId, topicData.topic_timer);
+                
+                // Update the store immediately
+                const store = api.container.lookup('service:store');
+                if (store) {
+                  try {
+                    const topic = store.peekRecord('topic', topicId);
+                    if (topic) {
+                      topic.set('topic_timer', topicData.topic_timer);
+                    }
+                  } catch (e) {
+                    console.warn('Failed to update topic cache:', e);
+                  }
+                }
+                
+                // Refresh badges immediately
+                setTimeout(() => addTimerBadgesToTopicList(), 50);
+              } else {
+                console.log(`- Topic ${topicId} has no timer`);
+              }
+            }).catch(error => {
+              console.log(`Failed to fetch topic ${topicId}:`, error.status);
+            });
+          }, index * 100); // Stagger requests by 100ms each
+        });
+        
+        preloadedCategories.add(categoryId);
+        lastPreloadTime = now;
+      }
+    }).catch(error => {
+      console.log(`Failed to fetch category ${categoryId}:`, error);
+    });
+  }
+  
+  // Preload all enabled categories on startup
+  function preloadAllEnabledCategories() {
+    console.log('Starting aggressive preload of all enabled categories...');
+    enabledCategories.forEach((categoryId, index) => {
+      setTimeout(() => {
+        aggressivelyPreloadCategory(categoryId);
+      }, index * 2000); // Stagger category preloads by 2 seconds
+    });
+  }
+  
+  // Set up periodic refresh for timer data
+  function startPeriodicRefresh() {
+    const refreshInterval = Math.max(30000, (settings.timer_cache_duration || 60) * 1000 * 0.5); // Refresh at half the cache duration
+    
+    setInterval(() => {
+      if (settings.preload_timer_data && enabledCategories.length > 0) {
+        console.log('Performing periodic timer data refresh...');
+        
+        // Only refresh categories that have been preloaded
+        const categoriesToRefresh = Array.from(preloadedCategories);
+        if (categoriesToRefresh.length > 0) {
+          // Clear the preloaded set to force fresh fetches
+          preloadedCategories.clear();
+          lastPreloadTime = 0;
+          
+          // Refresh each category
+          categoriesToRefresh.forEach((categoryId, index) => {
+            setTimeout(() => {
+              aggressivelyPreloadCategory(categoryId);
+            }, index * 1000); // Stagger refreshes by 1 second
+          });
+        }
+      }
+    }, refreshInterval);
+  }
+  
   // Enhanced timer data fetching - category-specific approach
   const fetchQueue = new Map(); // topicId -> categoryId mapping
   let fetchTimeout = null;
@@ -378,8 +523,9 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     }, debounceTime);
   }
   
-  // Simple approach: Add timer badges to topic lists using DOM manipulation
+  // Simplified approach: Add timer badges using available topic data
   function addTimerBadgesToTopicList() {
+    console.log('Adding timer badges to topic list...');
     const topicRows = document.querySelectorAll('.topic-list-item');
     
     topicRows.forEach(row => {
@@ -388,7 +534,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       row.setAttribute('data-timer-processed', 'true');
       
       // Get topic ID from the row
-      const topicId = row.getAttribute('data-topic-id');
+      const topicId = parseInt(row.getAttribute('data-topic-id'));
       if (!topicId) return;
       
       // Look for existing timer badge to avoid duplicates
@@ -401,16 +547,25 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       let topic = null;
       let timerData = null;
       
-      // Method 1: Try to get topic data from Discourse's topic list controller
-      const topicListController = api.container.lookup('controller:discovery/topics');
-      if (topicListController?.model?.topics) {
-        topic = topicListController.model.topics.find(t => t.id == topicId);
-        if (topic?.topic_timer) {
-          timerData = topic.topic_timer;
+      console.log(`Processing topic ${topicId}...`);
+      
+      // Method 1: Get data from topic list controller (most reliable)
+      try {
+        const topicListController = api.container.lookup('controller:discovery/topics');
+        if (topicListController?.model?.topics) {
+          topic = topicListController.model.topics.find(t => t.id === topicId);
+          console.log(`Topic ${topicId} from controller:`, topic);
+          
+          if (topic?.topic_timer) {
+            timerData = topic.topic_timer;
+            console.log(`✓ Topic ${topicId} has timer data from controller:`, timerData);
+          }
         }
+      } catch (e) {
+        console.warn('Failed to get topic from controller:', e);
       }
       
-      // Method 2: Try to get from topic store (may have cached data)
+      // Method 2: Try Ember store
       if (!timerData) {
         try {
           const store = api.container.lookup('service:store');
@@ -418,40 +573,44 @@ export default apiInitializer("topic-timer-to-top", (api) => {
           if (cachedTopic?.topic_timer) {
             timerData = cachedTopic.topic_timer;
             topic = cachedTopic;
+            console.log(`✓ Topic ${topicId} has timer data from store:`, timerData);
           }
         } catch (e) {
-          // Store lookup failed, continue to other methods
+          console.warn('Failed to get topic from store:', e);
         }
       }
       
-      // Method 3: Check if there's timer data in the DOM (from server-rendered data)
-      if (!timerData) {
-        // Look for data attributes or JSON that might contain timer info
-        const topicData = row.querySelector('[data-topic-timer]');
-        if (topicData) {
-          try {
-            timerData = JSON.parse(topicData.getAttribute('data-topic-timer'));
-          } catch (e) {
-            // JSON parsing failed
-          }
-        }
+      // Method 3: Check our preload cache
+      if (!timerData && timerDataCache.has(topicId)) {
+        timerData = timerDataCache.get(topicId);
+        console.log(`✓ Topic ${topicId} has timer data from cache:`, timerData);
       }
       
-      // If we still don't have timer data, queue a fetch and skip for now
+      // If no timer data found, log and continue
       if (!timerData) {
-        // Get category ID for targeted fetching
-        const categoryId = topic?.category_id || 
-                          (row.querySelector('[data-category-id]')?.getAttribute('data-category-id'));
+        console.log(`- Topic ${topicId} has no timer data available`);
         
-        if (categoryId && isCategoryEnabled(parseInt(categoryId))) {
-          queueTimerDataFetch(topicId, parseInt(categoryId));
+        // Only queue fetch if we have category info and it's enabled
+        const categoryId = topic?.category_id || 
+                          parseInt(row.querySelector('[data-category-id]')?.getAttribute('data-category-id'));
+        
+        if (categoryId && isCategoryEnabled(categoryId)) {
+          console.log(`Queueing fetch for topic ${topicId} in category ${categoryId}`);
+          queueTimerDataFetch(topicId, categoryId);
         }
         return;
       }
       
-      // Check if this timer is relevant
-      if (timerData.status_type !== 'publish_to_category' ||
-          !isCategoryEnabled(topic?.category_id || timerData.category_id)) {
+      // Validate timer data
+      if (timerData.status_type !== 'publish_to_category') {
+        console.log(`- Topic ${topicId} timer is not publish_to_category type`);
+        return;
+      }
+      
+      // Check if category is enabled
+      const categoryId = topic?.category_id || timerData.category_id;
+      if (!isCategoryEnabled(categoryId)) {
+        console.log(`- Topic ${topicId} category ${categoryId} is not enabled`);
         return;
       }
       
@@ -459,6 +618,8 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       const badge = document.createElement('span');
       badge.className = 'topic-timer-badge';
       badge.textContent = moment(timerData.execute_at).fromNow();
+      
+      console.log(`✓ Added timer badge to topic ${topicId}: ${badge.textContent}`);
       
       // Insert before the title link (left side positioning)
       titleLink.parentNode.insertBefore(badge, titleLink);
@@ -480,13 +641,70 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     
     if (shouldCheck) {
       setTimeout(addTimerBadgesToTopicList, 100);
+      
+      // Also trigger preloading for enabled categories when new topic lists appear
+      if (settings.preload_timer_data && enabledCategories.length > 0) {
+        setTimeout(() => {
+          const currentCategoryId = getCurrentCategoryId();
+          if (currentCategoryId && isCategoryEnabled(currentCategoryId)) {
+            aggressivelyPreloadCategory(currentCategoryId);
+          }
+        }, 200);
+      }
     }
   });
   
   try {
     listObserver.observe(document.body, { childList: true, subtree: true });
-    // Also run on initial page load
-    setTimeout(addTimerBadgesToTopicList, 500);
+    // Also run on initial page load with debugging
+    setTimeout(() => {
+      console.log('=== INITIAL PAGE LOAD DEBUG ===');
+      
+      // Debug: Check what data is available
+      const topicListController = api.container.lookup('controller:discovery/topics');
+      if (topicListController?.model?.topics) {
+        console.log('Available topics from controller:', topicListController.model.topics.length);
+        topicListController.model.topics.slice(0, 3).forEach(topic => {
+          console.log(`Topic ${topic.id}:`, {
+            title: topic.title,
+            category_id: topic.category_id,
+            has_timer: !!topic.topic_timer,
+            timer_data: topic.topic_timer
+          });
+        });
+      } else {
+        console.log('No topics found in controller');
+      }
+      
+      // Debug: Check store
+      const store = api.container.lookup('service:store');
+      if (store) {
+        const allTopics = store.peekAll('topic');
+        console.log('Topics in store:', allTopics.length);
+        allTopics.slice(0, 3).forEach(topic => {
+          console.log(`Store topic ${topic.id}:`, {
+            title: topic.title,
+            category_id: topic.category_id,
+            has_timer: !!topic.topic_timer,
+            timer_data: topic.topic_timer
+          });
+        });
+      }
+      
+      addTimerBadgesToTopicList();
+    }, 500);
+    
+    // Start aggressive preloading if enabled
+    if (settings.preload_timer_data && enabledCategories.length > 0) {
+      setTimeout(() => {
+        preloadAllEnabledCategories();
+      }, 1000); // Start preloading after a short delay
+      
+      // Start periodic refresh
+      setTimeout(() => {
+        startPeriodicRefresh();
+      }, 5000); // Start periodic refresh after initial preload
+    }
   } catch (error) {
     console.warn("Topic list timer observer error:", error);
   }
