@@ -349,34 +349,13 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         return;
       }
       
-      // Create the timer badge
+      // Create and add the timer badge
       const badge = document.createElement('span');
       badge.className = 'topic-timer-badge';
       badge.textContent = moment(timerData.execute_at).fromNow();
       
-      // Find the title span (the actual text content)
-      const titleSpan = titleLink.querySelector('span[dir="auto"]');
-      
-      if (titleSpan) {
-        // Method 1: Insert badge inside the title span at the end
-        // This ensures it's always visible even with text-overflow: ellipsis
-        titleSpan.appendChild(document.createTextNode(' '));
-        titleSpan.appendChild(badge);
-        
-        // Add classes to indicate this title has a timer badge
-        titleLink.classList.add('has-timer-badge');
-        row.classList.add('has-timer-badge');
-        
-        // Apply flexbox layout to the parent container for browsers that don't support :has()
-        const linkTopLine = titleLink.closest('.link-top-line');
-        if (linkTopLine) {
-          linkTopLine.classList.add('has-timer-badge');
-        }
-      } else {
-        // Fallback: Insert after the title link (original method)
-        titleLink.parentNode.insertBefore(badge, titleLink.nextSibling);
-        row.classList.add('has-timer-badge');
-      }
+      // Insert before the title link (left side positioning)
+      titleLink.parentNode.insertBefore(badge, titleLink);
     });
   }
   
