@@ -130,4 +130,25 @@ export default apiInitializer("topic-timer-to-top", (api) => {
 
   // Set a body data attribute for CSS targeting
   document.body.setAttribute("data-topic-timer-location", settings.display_location);
+
+  // Add timer info to topic list items
+  api.decorateWidget("topic-list-item", (helper) => {
+    const topic = helper.attrs.topic;
+    
+    // Check if topic has a timer and it's enabled for this category
+    if (!topic?.topic_timer || 
+        topic.topic_timer.status_type !== "publish_to_category" ||
+        !isCategoryEnabled(topic.category_id)) {
+      return;
+    }
+
+    const executeTime = topic.topic_timer.execute_at;
+    if (!executeTime) return;
+    
+    // Format the time remaining
+    const timeFromNow = moment(executeTime).fromNow();
+    
+    // Create a simple timer badge
+    return helper.h("span.topic-timer-badge", timeFromNow);
+  });
 });

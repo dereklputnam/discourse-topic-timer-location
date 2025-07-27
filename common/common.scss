@@ -23,3 +23,34 @@
 body[data-topic-timer-location="Top"] .topic-status-info .topic-timer-info {
   display: none !important;
 }
+
+// Topic list timer badge styling - matches Discourse event badge style
+.topic-timer-badge {
+  display: inline-block;
+  background-color: var(--tertiary-low);
+  border: 1px solid var(--tertiary-medium);
+  color: var(--tertiary);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.75em;
+  font-weight: normal;
+  margin-left: 6px;
+  white-space: nowrap;
+  
+  // Slightly muted appearance to match event styling
+  opacity: 0.9;
+}
+
+// Make sure it displays well in different topic list contexts
+.topic-list-item .topic-timer-badge {
+  vertical-align: middle;
+}
+
+// Mobile responsive
+@media screen and (max-width: 767px) {
+  .topic-timer-badge {
+    display: block;
+    margin: 4px 0 0 0;
+    font-size: 0.7em;
+  }
+}
