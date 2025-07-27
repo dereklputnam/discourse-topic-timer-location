@@ -1,7 +1,5 @@
 import { apiInitializer } from "discourse/lib/api";
 import TopicTimerInfo from "discourse/components/topic-timer-info";
-import { htmlSafe } from "@ember/template";
-import { iconHTML } from "discourse-common/lib/icon-library";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
   const displayLocation = settings.display_location;
@@ -132,57 +130,4 @@ export default apiInitializer("topic-timer-to-top", (api) => {
 
   // Set a body data attribute for CSS targeting
   document.body.setAttribute("data-topic-timer-location", settings.display_location);
-
-  // Topic List Functionality - Simplified approach for theme compatibility
-
-  // Add timer info display to topic list items - Basic version for compatibility
-  api.decorateWidget("topic-list-item", (helper) => {
-    const topic = helper.attrs.topic;
-    if (!topic || !topic.topic_timer || 
-        topic.topic_timer.status_type !== "publish_to_category" ||
-        !isCategoryEnabled(topic.category_id)) {
-      return;
-    }
-
-    // Get destination category name safely
-    const site = helper.register.lookup("site:main");
-    if (!site || !site.categories) return;
-    
-    const destinationCategory = site.categories.find(cat => cat.id === topic.topic_timer.category_id);
-    const categoryName = destinationCategory ? destinationCategory.name : "Unknown";
-    
-    // Get parent category name if it's a subcategory
-    let displayName = categoryName;
-    if (destinationCategory && destinationCategory.parent_category_id) {
-      const parent = site.categories.find(cat => cat.id === destinationCategory.parent_category_id);
-      if (parent) {
-        displayName = parent.name;
-      }
-    }
-    
-    const executeTime = topic.topic_timer.execute_at;
-    const timeFromNow = executeTime ? moment(executeTime).fromNow() : "";
-    
-    const iconHtml = iconHTML("clock");
-    
-    // Add has-timer class to the topic list item
-    try {
-      const topicElement = helper.widget.element;
-      if (topicElement) {
-        topicElement.classList.add("has-timer");
-      }
-    } catch (e) {
-      // Silently handle any DOM manipulation errors
-    }
-    
-    return helper.attach("raw-html", {
-      html: htmlSafe(`
-        <span class="topic-timer-info">
-          ${iconHtml}
-          <span class="timer-destination">${displayName}</span>
-          <span class="timer-time">${timeFromNow}</span>
-        </span>
-      `)
-    });
-  });
 });
