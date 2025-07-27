@@ -161,6 +161,70 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   // Set a body data attribute for CSS targeting
   document.body.setAttribute("data-topic-timer-location", settings.display_location);
   
+  // Proactive timer data fetching
+  const fetchQueue = new Set();
+  let fetchTimeout = null;
+  
+  function fetchTopicTimerData(topicIds) {
+    if (topicIds.length === 0) return;
+    
+    // Batch API calls to avoid overwhelming the server
+    const batchSize = 10;
+    const batches = [];
+    for (let i = 0; i < topicIds.length; i += batchSize) {
+      batches.push(topicIds.slice(i, i + batchSize));
+    }
+    
+    batches.forEach(batch => {
+      batch.forEach(topicId => {
+        // Use Discourse's ajax helper to fetch topic data
+        const ajax = api.container.lookup('service:ajax');
+        if (!ajax) return;
+        
+        ajax.request(`/t/${topicId}.json`, {
+          type: 'GET',
+          cache: true
+        }).then(data => {
+          if (data.topic_timer) {
+            // Store the timer data for later use
+            const store = api.container.lookup('service:store');
+            if (store) {
+              try {
+                // Update the cached topic with timer data
+                const topic = store.peekRecord('topic', topicId);
+                if (topic) {
+                  topic.set('topic_timer', data.topic_timer);
+                }
+              } catch (e) {
+                console.warn('Failed to update topic cache:', e);
+              }
+            }
+            
+            // Trigger badge update
+            setTimeout(() => addTimerBadgesToTopicList(), 100);
+          }
+        }).catch(error => {
+          // Silently handle API errors to avoid console spam
+          if (error.status !== 403 && error.status !== 404) {
+            console.warn('Failed to fetch topic timer data:', error);
+          }
+        });
+      });
+    });
+  }
+  
+  function queueTimerDataFetch(topicId) {
+    fetchQueue.add(topicId);
+    
+    // Debounce API calls
+    if (fetchTimeout) clearTimeout(fetchTimeout);
+    fetchTimeout = setTimeout(() => {
+      const ids = Array.from(fetchQueue);
+      fetchQueue.clear();
+      fetchTopicTimerData(ids);
+    }, 500);
+  }
+  
   // Simple approach: Add timer badges to topic lists using DOM manipulation
   function addTimerBadgesToTopicList() {
     const topicRows = document.querySelectorAll('.topic-list-item');
@@ -220,9 +284,15 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         }
       }
       
-      // If we still don't have timer data, skip this topic
-      if (!timerData || 
-          timerData.status_type !== 'publish_to_category' ||
+      // If we still don't have timer data, queue a fetch and skip for now
+      if (!timerData) {
+        // Queue this topic for API fetching
+        queueTimerDataFetch(topicId);
+        return;
+      }
+      
+      // Check if this timer is relevant
+      if (timerData.status_type !== 'publish_to_category' ||
           !isCategoryEnabled(topic?.category_id || timerData.category_id)) {
         return;
       }
@@ -232,8 +302,8 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       badge.className = 'topic-timer-badge';
       badge.textContent = moment(timerData.execute_at).fromNow();
       
-      // Insert before the title link
-      titleLink.parentNode.insertBefore(badge, titleLink);
+      // Insert after the title link
+      titleLink.parentNode.insertBefore(badge, titleLink.nextSibling);
     });
   }
   

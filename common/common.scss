@@ -34,11 +34,53 @@ body[data-topic-timer-location="Top"] .topic-status-info .topic-timer-info {
   border-radius: 3px;
   font-size: 0.75em;
   font-weight: normal;
-  margin-right: 6px; // Changed from margin-left since it's now before the title
+  margin-left: 6px;
   white-space: nowrap;
   
   // Slightly muted appearance to match event styling
   opacity: 0.9;
+  
+  // Ensure it doesn't get truncated with long titles
+  flex-shrink: 0;
+}
+
+// Improve topic list item layout to prevent timer badge truncation
+.topic-list-item {
+  .link-top-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    
+    .raw-topic-link {
+      flex: 1;
+      min-width: 0; // Allow text to shrink
+      margin-right: 8px;
+    }
+    
+    .topic-timer-badge {
+      flex-shrink: 0; // Prevent badge from shrinking
+      margin-left: auto; // Push to the right
+      margin-right: 0;
+    }
+  }
+}
+
+// For tile/card views, ensure proper positioning
+.topic-list.tiles .topic-list-item,
+.topic-list-item.tiles {
+  .main-link {
+    position: relative;
+  }
+  
+  .topic-timer-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    margin: 0;
+    z-index: 1;
+    background-color: rgba(var(--tertiary-low-rgb), 0.95);
+    backdrop-filter: blur(2px);
+  }
 }
 
 // Make sure it displays well in different topic list contexts
@@ -63,11 +105,33 @@ body[data-topic-timer-location="Top"] .topic-status-info .topic-timer-info {
 @media screen and (max-width: 767px) {
   .topic-timer-badge {
     display: inline-block;
-    margin-right: 4px;
+    margin-left: 4px;
     font-size: 0.7em;
   }
   
+  .topic-list-item {
+    .link-top-line {
+      flex-wrap: wrap;
+      
+      .topic-timer-badge {
+        order: 2; // Move to second line on mobile if needed
+        margin-left: 0;
+        margin-top: 4px;
+      }
+    }
+  }
+  
+  // For tile views on mobile, keep absolute positioning
+  .topic-list.tiles .topic-list-item,
+  .topic-list-item.tiles {
+    .topic-timer-badge {
+      top: 4px;
+      right: 4px;
+      font-size: 0.65em;
+    }
+  }
+  
   .header-topic-title-suffix-outlet .topic-timer-badge {
-    margin-right: 6px;
+    margin-left: 6px;
   }
 }
