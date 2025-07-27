@@ -36,14 +36,68 @@ body[data-topic-timer-location="Top"] .topic-status-info .topic-timer-info {
   font-weight: normal;
   margin-left: 6px;
   white-space: nowrap;
+  vertical-align: middle;
   
   // Slightly muted appearance to match event styling
   opacity: 0.9;
+  
+  // Ensure badge doesn't break or wrap
+  flex-shrink: 0;
 }
 
-// Make sure it displays well in different topic list contexts
-.topic-list-item .topic-timer-badge {
-  vertical-align: middle;
+// Special handling for titles with timer badges to prevent truncation
+.topic-list-item {
+  .raw-topic-link.has-timer-badge {
+    // Reserve space for the timer badge to prevent it from being cut off
+    max-width: calc(100% - 80px); // Reserve ~80px for timer badge
+    
+    span[dir="auto"] {
+      // Ensure the title span can still truncate but leaves room for badge
+      display: inline-block;
+      max-width: calc(100% - 80px);
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+      vertical-align: top;
+      
+      .topic-timer-badge {
+        // When inside the title span, ensure it's always visible
+        position: relative;
+        margin-left: 8px;
+        // Override any text truncation for the badge itself
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+    }
+  }
+  
+  // For regular badges outside the title (fallback)
+  .topic-timer-badge {
+    vertical-align: middle;
+  }
+}
+
+// Class-based approach for better browser compatibility
+.topic-list-item .link-top-line.has-timer-badge {
+  display: flex;
+  align-items: center;
+  
+  .raw-topic-link {
+    flex: 1;
+    min-width: 0; // Allow shrinking
+    
+    span[dir="auto"] {
+      display: block;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+  }
+  
+  .topic-timer-badge {
+    flex-shrink: 0;
+    margin-left: 8px;
+  }
 }
 
 // Mobile responsive
