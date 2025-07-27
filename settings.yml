@@ -20,7 +20,7 @@ preload_timer_data:
 
 timer_cache_duration:
   type: integer
-  default: 300
-  min: 60
+  default: 60
+  min: 10
   max: 3600
-  description: "How long (in seconds) to cache timer data before refreshing. Lower values show more up-to-date timers but increase server load."
+  description: "How long (in seconds) to cache timer data before refreshing. Lower values show more up-to-date timers but increase server load. Since API endpoints are working well, you can use lower values for faster updates."

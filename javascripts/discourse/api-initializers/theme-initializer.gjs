@@ -182,6 +182,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         },
         cache: true
       }).then(timersData => {
+        console.log('Admin endpoint response:', timersData); // Debug
         if (timersData.topic_timers) {
           const store = api.container.lookup('service:store');
           timersData.topic_timers.forEach(timerData => {
@@ -202,7 +203,8 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         
         // Fallback to category endpoint
         fetchCategoryEndpoint(categoryId, topicIds);
-      }).catch(() => {
+      }).catch((error) => {
+        console.log('Admin endpoint failed:', error); // Debug
         // Admin endpoint failed, try category endpoint
         fetchCategoryEndpoint(categoryId, topicIds);
       });
@@ -222,11 +224,14 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       data: { include_timers: true }, // Try requesting timer data
       cache: true
     }).then(categoryData => {
+      console.log('Category endpoint response:', categoryData); // Debug
       // If category data includes topic timers, use that
       if (categoryData.topic_list?.topics) {
         const store = api.container.lookup('service:store');
+        let foundTimers = 0;
         categoryData.topic_list.topics.forEach(topicData => {
           if (topicData.id && topicIds.includes(topicData.id) && topicData.topic_timer) {
+            foundTimers++;
             try {
               const topic = store?.peekRecord('topic', topicData.id);
               if (topic) {
@@ -237,13 +242,17 @@ export default apiInitializer("topic-timer-to-top", (api) => {
             }
           }
         });
-        setTimeout(() => addTimerBadgesToTopicList(), 100);
-        return;
+        console.log(`Found ${foundTimers} timers in category data`); // Debug
+        if (foundTimers > 0) {
+          setTimeout(() => addTimerBadgesToTopicList(), 100);
+          return;
+        }
       }
       
       // Method 3: Try search API with category filter
       fetchTopicsViaSearch(categoryId, topicIds);
-    }).catch(() => {
+    }).catch((error) => {
+      console.log('Category endpoint failed:', error); // Debug
       // Category endpoint failed, try search API
       fetchTopicsViaSearch(categoryId, topicIds);
     });
@@ -309,6 +318,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
             type: 'GET',
             cache: true
           }).then(data => {
+            console.log(`Topic ${topicId} data:`, data.topic_timer ? 'HAS TIMER' : 'NO TIMER'); // Debug
             if (data.topic_timer) {
               const store = api.container.lookup('service:store');
               if (store) {
@@ -316,6 +326,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
                   const topic = store.peekRecord('topic', topicId);
                   if (topic) {
                     topic.set('topic_timer', data.topic_timer);
+                    console.log(`Updated topic ${topicId} with timer data`); // Debug
                   }
                 } catch (e) {
                   console.warn('Failed to update topic cache:', e);
@@ -324,6 +335,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
               setTimeout(() => addTimerBadgesToTopicList(), 100);
             }
           }).catch(error => {
+            console.log(`Failed to fetch topic ${topicId}:`, error.status); // Debug
             // Silently handle API errors for non-critical failures
             if (error.status !== 403 && error.status !== 404 && error.status !== 429) {
               console.warn('Failed to fetch topic timer data:', error);
@@ -342,8 +354,8 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     
     fetchQueue.set(topicId, categoryId);
     
-    // Use configurable debounce timing
-    const debounceTime = Math.max(500, Math.min(2000, settings.timer_cache_duration * 0.1));
+    // Use much shorter debounce timing since we need individual requests
+    const debounceTime = Math.max(200, Math.min(1000, settings.timer_cache_duration * 0.05));
     
     if (fetchTimeout) clearTimeout(fetchTimeout);
     fetchTimeout = setTimeout(() => {
