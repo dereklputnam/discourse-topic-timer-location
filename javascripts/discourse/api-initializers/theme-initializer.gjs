@@ -1,5 +1,8 @@
 import { apiInitializer } from "discourse/lib/api";
 import TopicTimerInfo from "discourse/components/topic-timer-info";
+import { htmlSafe } from "@ember/template";
+import { iconHTML } from "discourse-common/lib/icon-library";
+import { action, computed } from "@ember/object";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
   const displayLocation = settings.display_location;
@@ -130,4 +133,192 @@ export default apiInitializer("topic-timer-to-top", (api) => {
 
   // Set a body data attribute for CSS targeting
   document.body.setAttribute("data-topic-timer-location", settings.display_location);
+
+  // Topic List Functionality
+  
+  // Add controller modifications for filtering and sorting
+  api.modifyClass("controller:discovery/topics", {
+    pluginId: "topic-timer-location",
+    
+    init() {
+      this._super(...arguments);
+      this.set("showTimerFilter", false);
+      this.set("timerSort", null);
+    },
+
+    @action
+    toggleTimerFilter() {
+      this.toggleProperty("showTimerFilter");
+      this.send("refresh");
+    },
+
+    @action
+    sortByTimer(direction = "asc") {
+      this.set("timerSort", direction);
+      this.send("refresh");
+    },
+
+    @action
+    clearTimerSort() {
+      this.set("timerSort", null);
+      this.send("refresh");
+    },
+
+    @computed("model.topics.@each.topic_timer")
+    timerStats() {
+      const topics = this.model?.topics || [];
+      const withTimers = topics.filter(topic => 
+        topic.topic_timer && 
+        topic.topic_timer.status_type === "publish_to_category" &&
+        isCategoryEnabled(topic.category?.id)
+      );
+      
+      return {
+        total: topics.length,
+        withTimers: withTimers.length,
+        percentage: topics.length > 0 ? Math.round((withTimers.length / topics.length) * 100) : 0
+      };
+    }
+  });
+
+  // Modify topic list to handle filtering and sorting
+  api.modifyClass("model:topic-list", {
+    pluginId: "topic-timer-location",
+    
+    @computed("topics.@each.topic_timer", "controller.showTimerFilter", "controller.timerSort")
+    processedTopics() {
+      let topics = this.topics || [];
+      const controller = this.controller;
+      
+      // Apply timer filter
+      if (controller && controller.showTimerFilter) {
+        topics = topics.filter(topic => 
+          topic.topic_timer && 
+          topic.topic_timer.status_type === "publish_to_category" &&
+          isCategoryEnabled(topic.category?.id)
+        );
+      }
+      
+      // Apply timer sorting
+      if (controller && controller.timerSort) {
+        topics = topics.slice().sort((a, b) => {
+          const aHasTimer = a.topic_timer && 
+                           a.topic_timer.status_type === "publish_to_category" &&
+                           isCategoryEnabled(a.category?.id);
+          const bHasTimer = b.topic_timer && 
+                           b.topic_timer.status_type === "publish_to_category" &&
+                           isCategoryEnabled(b.category?.id);
+          
+          if (controller.timerSort === "timers-first") {
+            if (aHasTimer && !bHasTimer) return -1;
+            if (!aHasTimer && bHasTimer) return 1;
+            
+            // Both have timers, sort by execution time
+            if (aHasTimer && bHasTimer) {
+              const aTime = new Date(a.topic_timer.execute_at);
+              const bTime = new Date(b.topic_timer.execute_at);
+              return aTime - bTime;
+            }
+          } else if (controller.timerSort === "execution-time") {
+            // Sort only topics with timers by execution time
+            if (aHasTimer && bHasTimer) {
+              const aTime = new Date(a.topic_timer.execute_at);
+              const bTime = new Date(b.topic_timer.execute_at);
+              return aTime - bTime;
+            }
+          }
+          
+          return 0;
+        });
+      }
+      
+      return topics;
+    }
+  });
+
+  // Add timer info display to topic list items
+  api.decorateWidget("topic-list-item", (helper) => {
+    const topic = helper.attrs.topic;
+    if (!topic.topic_timer || 
+        topic.topic_timer.status_type !== "publish_to_category" ||
+        !isCategoryEnabled(topic.category?.id)) {
+      return;
+    }
+
+    // Get destination category name
+    const site = helper.register.lookup("site:main");
+    const destinationCategory = site.categories.find(cat => cat.id === topic.topic_timer.category_id);
+    const categoryName = destinationCategory ? destinationCategory.name : "Unknown";
+    
+    // Get parent category name if it's a subcategory
+    let displayName = categoryName;
+    if (destinationCategory?.parent_category_id) {
+      const parent = site.categories.find(cat => cat.id === destinationCategory.parent_category_id);
+      if (parent) {
+        displayName = parent.name;
+      }
+    }
+    
+    const executeTime = topic.topic_timer.execute_at;
+    const timeFromNow = executeTime ? moment(executeTime).fromNow() : "";
+    
+    const iconHtml = iconHTML("clock");
+    
+    // Add has-timer class to the topic list item
+    const topicElement = helper.widget.element;
+    if (topicElement) {
+      topicElement.classList.add("has-timer");
+    }
+    
+    return helper.attach("raw-html", {
+      html: htmlSafe(`
+        <span class="topic-timer-info">
+          ${iconHtml}
+          <span class="timer-destination">${displayName}</span>
+          <span class="timer-time">${timeFromNow}</span>
+        </span>
+      `)
+    });
+  });
+
+  // Add timer controls to topic list header
+  api.decorateWidget("topic-list-header", (helper) => {
+    const controller = helper.register.lookup("controller:discovery/topics");
+    if (!controller) return;
+
+    const stats = controller.timerStats || { total: 0, withTimers: 0, percentage: 0 };
+    
+    return helper.h("div.topic-timer-controls", [
+      helper.h("div.timer-filter-controls", [
+        helper.h("button.btn.btn-default.timer-filter-btn", {
+          className: controller.showTimerFilter ? "active" : "",
+          onclick: () => controller.send("toggleTimerFilter"),
+          title: "Show only topics with timers"
+        }, [
+          helper.rawHtml(iconHTML("clock")),
+          controller.showTimerFilter ? " Show All" : " Show Timers Only"
+        ]),
+        
+        helper.h("select.timer-sort-select", {
+          onchange: (e) => {
+            const value = e.target.value;
+            if (value === "") {
+              controller.send("clearTimerSort");
+            } else {
+              controller.send("sortByTimer", value);
+            }
+          }
+        }, [
+          helper.h("option", { value: "" }, "Default Sort"),
+          helper.h("option", { value: "timers-first" }, "Timers First"),
+          helper.h("option", { value: "execution-time" }, "By Timer Date")
+        ])
+      ]),
+      
+      helper.h("div.timer-stats", [
+        helper.h("span.stat-highlight", stats.withTimers.toString()),
+        ` of ${stats.total} topics have timers (${stats.percentage}%)`
+      ])
+    ]);
+  });
 });

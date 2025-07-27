@@ -23,3 +23,126 @@
 body[data-topic-timer-location="Top"] .topic-status-info .topic-timer-info {
   display: none !important;
 }
+
+// Topic list timer display
+.topic-list-item {
+  &.has-timer {
+    position: relative;
+    
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--tertiary);
+      border-radius: 0 2px 2px 0;
+    }
+  }
+  
+  .topic-timer-info {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
+    padding: 2px 8px;
+    background: var(--tertiary-low);
+    border-radius: 12px;
+    font-size: 0.8em;
+    color: var(--tertiary);
+    
+    .d-icon {
+      margin-right: 4px;
+      font-size: 0.9em;
+    }
+    
+    .timer-destination {
+      font-weight: 500;
+    }
+    
+    .timer-time {
+      margin-left: 6px;
+      opacity: 0.9;
+      font-size: 0.9em;
+    }
+  }
+}
+
+// Timer filter and sort controls
+.topic-timer-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0;
+  padding: 8px 12px;
+  background: var(--secondary);
+  border: 1px solid var(--primary-low);
+  border-radius: 6px;
+
+  .timer-filter-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .timer-filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    font-size: 0.9em;
+    
+    &.active {
+      background: var(--tertiary);
+      color: var(--secondary);
+    }
+    
+    .d-icon {
+      font-size: 0.85em;
+    }
+  }
+
+  .timer-sort-select {
+    padding: 4px 8px;
+    border: 1px solid var(--primary-low);
+    border-radius: 4px;
+    background: var(--secondary);
+    color: var(--primary);
+    font-size: 0.9em;
+  }
+  
+  .timer-stats {
+    font-size: 0.85em;
+    color: var(--primary-medium);
+    margin-left: auto;
+    
+    .stat-highlight {
+      font-weight: bold;
+      color: var(--tertiary);
+    }
+  }
+}
+
+// Mobile responsive
+@media screen and (max-width: 767px) {
+  .topic-timer-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    
+    .timer-filter-controls {
+      justify-content: space-between;
+    }
+    
+    .timer-stats {
+      margin-left: 0;
+      text-align: center;
+    }
+  }
+  
+  .topic-list-item .topic-timer-info {
+    display: block;
+    margin: 4px 0;
+    padding: 4px 8px;
+  }
+}
