@@ -34,7 +34,7 @@ body[data-topic-timer-location="Top"] .topic-status-info .topic-timer-info {
   border-radius: 3px;
   font-size: 0.75em;
   font-weight: normal;
-  margin-left: 6px;
+  margin-right: 6px; // Changed from margin-left since it's now before the title
   white-space: nowrap;
   
   // Slightly muted appearance to match event styling
@@ -63,11 +63,11 @@ body[data-topic-timer-location="Top"] .topic-status-info .topic-timer-info {
 @media screen and (max-width: 767px) {
   .topic-timer-badge {
     display: inline-block;
-    margin: 4px 0 0 6px;
+    margin-right: 4px;
     font-size: 0.7em;
   }
   
   .header-topic-title-suffix-outlet .topic-timer-badge {
-    margin-left: 6px;
+    margin-right: 6px;
   }
 }

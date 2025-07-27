@@ -181,24 +181,59 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       const titleLink = row.querySelector('.raw-topic-link, .title');
       if (!titleLink) return;
       
-      // Try to get topic data from Discourse's topic list
-      const topicListController = api.container.lookup('controller:discovery/topics');
-      if (!topicListController?.model?.topics) return;
+      let topic = null;
+      let timerData = null;
       
-      const topic = topicListController.model.topics.find(t => t.id == topicId);
-      if (!topic?.topic_timer || 
-          topic.topic_timer.status_type !== 'publish_to_category' ||
-          !isCategoryEnabled(topic.category_id)) {
+      // Method 1: Try to get topic data from Discourse's topic list controller
+      const topicListController = api.container.lookup('controller:discovery/topics');
+      if (topicListController?.model?.topics) {
+        topic = topicListController.model.topics.find(t => t.id == topicId);
+        if (topic?.topic_timer) {
+          timerData = topic.topic_timer;
+        }
+      }
+      
+      // Method 2: Try to get from topic store (may have cached data)
+      if (!timerData) {
+        try {
+          const store = api.container.lookup('service:store');
+          const cachedTopic = store.peekRecord('topic', topicId);
+          if (cachedTopic?.topic_timer) {
+            timerData = cachedTopic.topic_timer;
+            topic = cachedTopic;
+          }
+        } catch (e) {
+          // Store lookup failed, continue to other methods
+        }
+      }
+      
+      // Method 3: Check if there's timer data in the DOM (from server-rendered data)
+      if (!timerData) {
+        // Look for data attributes or JSON that might contain timer info
+        const topicData = row.querySelector('[data-topic-timer]');
+        if (topicData) {
+          try {
+            timerData = JSON.parse(topicData.getAttribute('data-topic-timer'));
+          } catch (e) {
+            // JSON parsing failed
+          }
+        }
+      }
+      
+      // If we still don't have timer data, skip this topic
+      if (!timerData || 
+          timerData.status_type !== 'publish_to_category' ||
+          !isCategoryEnabled(topic?.category_id || timerData.category_id)) {
         return;
       }
       
       // Create and add the timer badge
       const badge = document.createElement('span');
       badge.className = 'topic-timer-badge';
-      badge.textContent = moment(topic.topic_timer.execute_at).fromNow();
+      badge.textContent = moment(timerData.execute_at).fromNow();
       
-      // Insert after the title
-      titleLink.parentNode.insertBefore(badge, titleLink.nextSibling);
+      // Insert before the title link
+      titleLink.parentNode.insertBefore(badge, titleLink);
     });
   }
   
