@@ -160,20 +160,71 @@ export default apiInitializer("topic-timer-to-top", (api) => {
 
   // Set a body data attribute for CSS targeting
   document.body.setAttribute("data-topic-timer-location", settings.display_location);
-
-  // Register helper for template use
-  api.registerTemplateHelper("isCategoryEnabled", isCategoryEnabled);
-
-  // Add timer info to topic list items using the same outlet as Events plugin
-  api.renderInOutlet("header-topic-title-suffix", <template>
-    {{#if @outletArgs.topic.topic_timer}}
-      {{#if (eq @outletArgs.topic.topic_timer.status_type "publish_to_category")}}
-        {{#if (isCategoryEnabled @outletArgs.topic.category_id)}}
-          <span class="topic-timer-badge">
-            {{moment-from-now @outletArgs.topic.topic_timer.execute_at}}
-          </span>
-        {{/if}}
-      {{/if}}
-    {{/if}}
-  </template>);
+  
+  // Simple approach: Add timer badges to topic lists using DOM manipulation
+  function addTimerBadgesToTopicList() {
+    const topicRows = document.querySelectorAll('.topic-list-item');
+    
+    topicRows.forEach(row => {
+      // Skip if already processed
+      if (row.hasAttribute('data-timer-processed')) return;
+      row.setAttribute('data-timer-processed', 'true');
+      
+      // Get topic ID from the row
+      const topicId = row.getAttribute('data-topic-id');
+      if (!topicId) return;
+      
+      // Look for existing timer badge to avoid duplicates
+      if (row.querySelector('.topic-timer-badge')) return;
+      
+      // Find the topic title area
+      const titleLink = row.querySelector('.raw-topic-link, .title');
+      if (!titleLink) return;
+      
+      // Try to get topic data from Discourse's topic list
+      const topicListController = api.container.lookup('controller:discovery/topics');
+      if (!topicListController?.model?.topics) return;
+      
+      const topic = topicListController.model.topics.find(t => t.id == topicId);
+      if (!topic?.topic_timer || 
+          topic.topic_timer.status_type !== 'publish_to_category' ||
+          !isCategoryEnabled(topic.category_id)) {
+        return;
+      }
+      
+      // Create and add the timer badge
+      const badge = document.createElement('span');
+      badge.className = 'topic-timer-badge';
+      badge.textContent = moment(topic.topic_timer.execute_at).fromNow();
+      
+      // Insert after the title
+      titleLink.parentNode.insertBefore(badge, titleLink.nextSibling);
+    });
+  }
+  
+  // Run when topic lists load
+  const listObserver = new MutationObserver((mutations) => {
+    let shouldCheck = false;
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === Node.ELEMENT_NODE && 
+            (node.classList?.contains('topic-list') || 
+             node.querySelector && node.querySelector('.topic-list'))) {
+          shouldCheck = true;
+        }
+      });
+    });
+    
+    if (shouldCheck) {
+      setTimeout(addTimerBadgesToTopicList, 100);
+    }
+  });
+  
+  try {
+    listObserver.observe(document.body, { childList: true, subtree: true });
+    // Also run on initial page load
+    setTimeout(addTimerBadgesToTopicList, 500);
+  } catch (error) {
+    console.warn("Topic list timer observer error:", error);
+  }
 });
