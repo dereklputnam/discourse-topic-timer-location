@@ -12,9 +12,6 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     .map((id) => parseInt(id, 10))
     .filter((id) => id);
     
-  console.log('Enabled categories setting:', settings.enabled_categories);
-  console.log('Parsed enabled categories:', enabledCategories);
-    
   // Helper function to check if a category is enabled
   const isCategoryEnabled = (categoryId) => {
     // If no categories are specified, apply to all
@@ -163,151 +160,6 @@ export default apiInitializer("topic-timer-to-top", (api) => {
 
   // Set a body data attribute for CSS targeting
   document.body.setAttribute("data-topic-timer-location", settings.display_location);
-  
-  // Aggressive preloading for small categories
-  const preloadedCategories = new Set();
-  const timerDataCache = new Map(); // topicId -> timer data
-  let lastPreloadTime = 0;
-  
-  // Helper to get current category ID from the page
-  function getCurrentCategoryId() {
-    try {
-      // Try to get from discovery controller first
-      const discoveryController = api.container.lookup('controller:discovery');
-      if (discoveryController?.model?.category?.id) {
-        return parseInt(discoveryController.model.category.id, 10);
-      }
-      
-      // Fallback: try to extract from URL
-      const match = window.location.pathname.match(/\/c\/[^\/]+\/(\d+)/);
-      if (match && match[1]) {
-        return parseInt(match[1], 10);
-      }
-      
-      // Fallback: look for category data in DOM
-      const categoryElement = document.querySelector('[data-category-id]');
-      if (categoryElement) {
-        return parseInt(categoryElement.getAttribute('data-category-id'), 10);
-      }
-    } catch (e) {
-      console.warn('Failed to get current category ID:', e);
-    }
-    
-    return null;
-  }
-  
-  function aggressivelyPreloadCategory(categoryId) {
-    if (!isCategoryEnabled(categoryId)) return;
-    
-    const now = Date.now();
-    const cacheAge = now - lastPreloadTime;
-    const cacheLimit = (settings.timer_cache_duration || 60) * 1000;
-    
-    // Skip if we've preloaded recently
-    if (preloadedCategories.has(categoryId) && cacheAge < cacheLimit) {
-      console.log(`Category ${categoryId} already preloaded recently`);
-      return;
-    }
-    
-    console.log(`Aggressively preloading category ${categoryId}...`);
-    const ajax = api.container.lookup('service:ajax');
-    if (!ajax) return;
-    
-    // Fetch the full category topic list first
-    ajax.request(`/c/${categoryId}.json`, {
-      type: 'GET',
-      data: { 
-        order: 'created',
-        ascending: false,
-        page: 0,
-        per_page: 50 // Get more topics to be safe
-      },
-      cache: false // Always get fresh data
-    }).then(categoryData => {
-      console.log(`Category ${categoryId} has ${categoryData.topic_list?.topics?.length || 0} topics`);
-      
-      if (categoryData.topic_list?.topics) {
-        const topicIds = categoryData.topic_list.topics.map(t => t.id);
-        console.log(`Fetching individual timer data for ${topicIds.length} topics:`, topicIds);
-        
-        // Fetch ALL topics individually and aggressively
-        topicIds.forEach((topicId, index) => {
-          setTimeout(() => {
-            ajax.request(`/t/${topicId}.json`, {
-              type: 'GET',
-              cache: false // Always get fresh timer data
-            }).then(topicData => {
-              if (topicData.topic_timer) {
-                console.log(`✓ Topic ${topicId} has timer:`, topicData.topic_timer.execute_at);
-                timerDataCache.set(topicId, topicData.topic_timer);
-                
-                // Update the store if available (optional since we have our own cache)
-                try {
-                  const store = api.container.lookup('service:store');
-                  if (store && store.peekRecord) {
-                    const topic = store.peekRecord('topic', topicId);
-                    if (topic) {
-                      topic.set('topic_timer', topicData.topic_timer);
-                    }
-                  }
-                } catch (e) {
-                  // Store update failed, but we still have our cache
-                }
-                
-                // Refresh badges immediately
-                setTimeout(() => addTimerBadgesToTopicList(), 50);
-              } else {
-                console.log(`- Topic ${topicId} has no timer`);
-              }
-            }).catch(error => {
-              console.log(`Failed to fetch topic ${topicId}:`, error.status);
-            });
-          }, index * 100); // Stagger requests by 100ms each
-        });
-        
-        preloadedCategories.add(categoryId);
-        lastPreloadTime = now;
-      }
-    }).catch(error => {
-      console.log(`Failed to fetch category ${categoryId}:`, error);
-    });
-  }
-  
-  // Preload all enabled categories on startup
-  function preloadAllEnabledCategories() {
-    console.log('Starting aggressive preload of all enabled categories...');
-    enabledCategories.forEach((categoryId, index) => {
-      setTimeout(() => {
-        aggressivelyPreloadCategory(categoryId);
-      }, index * 2000); // Stagger category preloads by 2 seconds
-    });
-  }
-  
-  // Set up periodic refresh for timer data
-  function startPeriodicRefresh() {
-    const refreshInterval = Math.max(30000, (settings.timer_cache_duration || 60) * 1000 * 0.5); // Refresh at half the cache duration
-    
-    setInterval(() => {
-      if (settings.preload_timer_data && enabledCategories.length > 0) {
-        console.log('Performing periodic timer data refresh...');
-        
-        // Only refresh categories that have been preloaded
-        const categoriesToRefresh = Array.from(preloadedCategories);
-        if (categoriesToRefresh.length > 0) {
-          // Clear the preloaded set to force fresh fetches
-          preloadedCategories.clear();
-          lastPreloadTime = 0;
-          
-          // Refresh each category
-          categoriesToRefresh.forEach((categoryId, index) => {
-            setTimeout(() => {
-              aggressivelyPreloadCategory(categoryId);
-            }, index * 1000); // Stagger refreshes by 1 second
-          });
-        }
-      }
-    }, refreshInterval);
-  }
   
   // Enhanced timer data fetching - category-specific approach
   const fetchQueue = new Map(); // topicId -> categoryId mapping
@@ -468,10 +320,6 @@ export default apiInitializer("topic-timer-to-top", (api) => {
           }).then(data => {
             console.log(`Topic ${topicId} data:`, data.topic_timer ? 'HAS TIMER' : 'NO TIMER'); // Debug
             if (data.topic_timer) {
-              // Store in our cache first (most reliable)
-              timerDataCache.set(topicId, data.topic_timer);
-              
-              // Also try to update Discourse's store if available
               try {
                 const store = api.container.lookup('service:store');
                 if (store && store.peekRecord) {
@@ -482,9 +330,8 @@ export default apiInitializer("topic-timer-to-top", (api) => {
                   }
                 }
               } catch (e) {
-                // Store update failed, but we have our cache
+                // Store update failed, but we still try to show badges
               }
-              
               setTimeout(() => addTimerBadgesToTopicList(), 100);
             }
           }).catch(error => {
@@ -531,9 +378,8 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     }, debounceTime);
   }
   
-  // Simplified approach: Add timer badges using available topic data
+  // Simple approach: Add timer badges to topic lists using DOM manipulation
   function addTimerBadgesToTopicList() {
-    console.log('Adding timer badges to topic list...');
     const topicRows = document.querySelectorAll('.topic-list-item');
     
     topicRows.forEach(row => {
@@ -542,7 +388,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       row.setAttribute('data-timer-processed', 'true');
       
       // Get topic ID from the row
-      const topicId = parseInt(row.getAttribute('data-topic-id'));
+      const topicId = row.getAttribute('data-topic-id');
       if (!topicId) return;
       
       // Look for existing timer badge to avoid duplicates
@@ -555,92 +401,59 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       let topic = null;
       let timerData = null;
       
-      console.log(`Processing topic ${topicId}...`);
-      
-      // Method 1: Get data from discovery service (newer API)
-      try {
-        const discovery = api.container.lookup('service:discovery');
-        if (discovery?.model?.topics) {
-          topic = discovery.model.topics.find(t => t.id === topicId);
-          console.log(`Topic ${topicId} from discovery:`, topic);
-          
-          if (topic?.topic_timer) {
-            timerData = topic.topic_timer;
-            console.log(`✓ Topic ${topicId} has timer data from discovery:`, timerData);
-          }
-        }
-      } catch (e) {
-        // Fallback to deprecated controller
-        try {
-          const topicListController = api.container.lookup('controller:discovery/topics');
-          if (topicListController?.model?.topics) {
-            topic = topicListController.model.topics.find(t => t.id === topicId);
-            if (topic?.topic_timer) {
-              timerData = topic.topic_timer;
-              console.log(`✓ Topic ${topicId} has timer data from controller:`, timerData);
-            }
-          }
-        } catch (e2) {
-          console.warn('Failed to get topic from both discovery service and controller:', e2);
+      // Method 1: Try to get topic data from Discourse's topic list controller
+      const topicListController = api.container.lookup('controller:discovery/topics');
+      if (topicListController?.model?.topics) {
+        topic = topicListController.model.topics.find(t => t.id == topicId);
+        if (topic?.topic_timer) {
+          timerData = topic.topic_timer;
         }
       }
       
-      // Method 2: Try Ember store (updated API)
+      // Method 2: Try to get from topic store (may have cached data)
       if (!timerData) {
         try {
           const store = api.container.lookup('service:store');
-          // Try newer store API first
-          if (store.peekRecord) {
+          if (store && store.peekRecord) {
             const cachedTopic = store.peekRecord('topic', topicId);
             if (cachedTopic?.topic_timer) {
               timerData = cachedTopic.topic_timer;
               topic = cachedTopic;
-              console.log(`✓ Topic ${topicId} has timer data from store:`, timerData);
             }
           }
         } catch (e) {
-          console.warn('Store lookup not available in this Discourse version');
+          // Store lookup failed, continue to other methods
         }
       }
       
-      // Method 3: Check our preload cache
-      if (!timerData && timerDataCache.has(topicId)) {
-        timerData = timerDataCache.get(topicId);
-        console.log(`✓ Topic ${topicId} has timer data from cache:`, timerData);
+      // Method 3: Check if there's timer data in the DOM (from server-rendered data)
+      if (!timerData) {
+        // Look for data attributes or JSON that might contain timer info
+        const topicData = row.querySelector('[data-topic-timer]');
+        if (topicData) {
+          try {
+            timerData = JSON.parse(topicData.getAttribute('data-topic-timer'));
+          } catch (e) {
+            // JSON parsing failed
+          }
+        }
       }
       
-      // If no timer data found, log and continue
+      // If we still don't have timer data, queue a fetch and skip for now
       if (!timerData) {
-        console.log(`- Topic ${topicId} has no timer data available`);
-        
         // Get category ID for targeted fetching
         const categoryId = topic?.category_id || 
-                          parseInt(row.querySelector('[data-category-id]')?.getAttribute('data-category-id'));
+                          (row.querySelector('[data-category-id]')?.getAttribute('data-category-id'));
         
-        console.log(`Topic ${topicId} category: ${categoryId}, enabled: ${isCategoryEnabled(categoryId)}`);
-        console.log(`Enabled categories:`, enabledCategories);
-        
-        if (categoryId && isCategoryEnabled(categoryId)) {
-          console.log(`✓ Queueing fetch for topic ${topicId} in category ${categoryId}`);
-          queueTimerDataFetch(topicId, categoryId);
-        } else if (categoryId) {
-          console.log(`- Topic ${topicId} category ${categoryId} is not in enabled categories`);
-        } else {
-          console.log(`- Topic ${topicId} has no category ID`);
+        if (categoryId && isCategoryEnabled(parseInt(categoryId))) {
+          queueTimerDataFetch(topicId, parseInt(categoryId));
         }
         return;
       }
       
-      // Validate timer data
-      if (timerData.status_type !== 'publish_to_category') {
-        console.log(`- Topic ${topicId} timer is not publish_to_category type`);
-        return;
-      }
-      
-      // Check if category is enabled
-      const categoryId = topic?.category_id || timerData.category_id;
-      if (!isCategoryEnabled(categoryId)) {
-        console.log(`- Topic ${topicId} category ${categoryId} is not enabled`);
+      // Check if this timer is relevant
+      if (timerData.status_type !== 'publish_to_category' ||
+          !isCategoryEnabled(topic?.category_id || timerData.category_id)) {
         return;
       }
       
@@ -648,8 +461,6 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       const badge = document.createElement('span');
       badge.className = 'topic-timer-badge';
       badge.textContent = moment(timerData.execute_at).fromNow();
-      
-      console.log(`✓ Added timer badge to topic ${topicId}: ${badge.textContent}`);
       
       // Insert before the title link (left side positioning)
       titleLink.parentNode.insertBefore(badge, titleLink);
@@ -671,75 +482,13 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     
     if (shouldCheck) {
       setTimeout(addTimerBadgesToTopicList, 100);
-      
-      // Also trigger preloading for enabled categories when new topic lists appear
-      if (settings.preload_timer_data && enabledCategories.length > 0) {
-        setTimeout(() => {
-          const currentCategoryId = getCurrentCategoryId();
-          if (currentCategoryId && isCategoryEnabled(currentCategoryId)) {
-            aggressivelyPreloadCategory(currentCategoryId);
-          }
-        }, 200);
-      }
     }
   });
   
   try {
     listObserver.observe(document.body, { childList: true, subtree: true });
-    // Also run on initial page load with debugging
-    setTimeout(() => {
-      console.log('=== INITIAL PAGE LOAD DEBUG ===');
-      
-      // Debug: Check what data is available - try discovery service first
-      let topics = null;
-      try {
-        const discovery = api.container.lookup('service:discovery');
-        if (discovery?.model?.topics) {
-          topics = discovery.model.topics;
-          console.log('Available topics from discovery service:', topics.length);
-        }
-      } catch (e) {
-        // Fallback to deprecated controller
-        try {
-          const topicListController = api.container.lookup('controller:discovery/topics');
-          if (topicListController?.model?.topics) {
-            topics = topicListController.model.topics;
-            console.log('Available topics from controller (deprecated):', topics.length);
-          }
-        } catch (e2) {
-          console.log('No topics found in either discovery service or controller');
-        }
-      }
-      
-      if (topics) {
-        topics.slice(0, 3).forEach(topic => {
-          console.log(`Topic ${topic.id}:`, {
-            title: topic.title,
-            category_id: topic.category_id,
-            has_timer: !!topic.topic_timer,
-            timer_data: topic.topic_timer
-          });
-        });
-      }
-      
-      // Since timer data is NOT in topic list response, go straight to aggressive preloading
-      console.log('Timer data is NOT included in topic list - using aggressive preloading approach');
-      console.log('This is expected behavior - topic lists do not include timer data by default');
-      
-      addTimerBadgesToTopicList();
-    }, 500);
-    
-    // Start aggressive preloading if enabled
-    if (settings.preload_timer_data && enabledCategories.length > 0) {
-      setTimeout(() => {
-        preloadAllEnabledCategories();
-      }, 1000); // Start preloading after a short delay
-      
-      // Start periodic refresh
-      setTimeout(() => {
-        startPeriodicRefresh();
-      }, 5000); // Start periodic refresh after initial preload
-    }
+    // Also run on initial page load
+    setTimeout(addTimerBadgesToTopicList, 500);
   } catch (error) {
     console.warn("Topic list timer observer error:", error);
   }
