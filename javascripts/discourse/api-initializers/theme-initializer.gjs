@@ -12,6 +12,9 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     .map((id) => parseInt(id, 10))
     .filter((id) => id);
     
+  console.log('Enabled categories setting:', settings.enabled_categories);
+  console.log('Parsed enabled categories:', enabledCategories);
+    
   // Helper function to check if a category is enabled
   const isCategoryEnabled = (categoryId) => {
     // If no categories are specified, apply to all
@@ -225,7 +228,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       
       if (categoryData.topic_list?.topics) {
         const topicIds = categoryData.topic_list.topics.map(t => t.id);
-        console.log(`Fetching individual timer data for ${topicIds.length} topics...`);
+        console.log(`Fetching individual timer data for ${topicIds.length} topics:`, topicIds);
         
         // Fetch ALL topics individually and aggressively
         topicIds.forEach((topicId, index) => {
@@ -610,13 +613,20 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       if (!timerData) {
         console.log(`- Topic ${topicId} has no timer data available`);
         
-        // Only queue fetch if we have category info and it's enabled
+        // Get category ID for targeted fetching
         const categoryId = topic?.category_id || 
                           parseInt(row.querySelector('[data-category-id]')?.getAttribute('data-category-id'));
         
+        console.log(`Topic ${topicId} category: ${categoryId}, enabled: ${isCategoryEnabled(categoryId)}`);
+        console.log(`Enabled categories:`, enabledCategories);
+        
         if (categoryId && isCategoryEnabled(categoryId)) {
-          console.log(`Queueing fetch for topic ${topicId} in category ${categoryId}`);
+          console.log(`✓ Queueing fetch for topic ${topicId} in category ${categoryId}`);
           queueTimerDataFetch(topicId, categoryId);
+        } else if (categoryId) {
+          console.log(`- Topic ${topicId} category ${categoryId} is not in enabled categories`);
+        } else {
+          console.log(`- Topic ${topicId} has no category ID`);
         }
         return;
       }
