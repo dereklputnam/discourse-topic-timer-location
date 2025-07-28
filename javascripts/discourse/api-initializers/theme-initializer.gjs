@@ -238,17 +238,17 @@ export default apiInitializer("topic-timer-to-top", (api) => {
                 console.log(`✓ Topic ${topicId} has timer:`, topicData.topic_timer.execute_at);
                 timerDataCache.set(topicId, topicData.topic_timer);
                 
-                // Update the store immediately
-                const store = api.container.lookup('service:store');
-                if (store) {
-                  try {
+                // Update the store if available (optional since we have our own cache)
+                try {
+                  const store = api.container.lookup('service:store');
+                  if (store && store.peekRecord) {
                     const topic = store.peekRecord('topic', topicId);
                     if (topic) {
                       topic.set('topic_timer', topicData.topic_timer);
                     }
-                  } catch (e) {
-                    console.warn('Failed to update topic cache:', e);
                   }
+                } catch (e) {
+                  // Store update failed, but we still have our cache
                 }
                 
                 // Refresh badges immediately
@@ -465,18 +465,23 @@ export default apiInitializer("topic-timer-to-top", (api) => {
           }).then(data => {
             console.log(`Topic ${topicId} data:`, data.topic_timer ? 'HAS TIMER' : 'NO TIMER'); // Debug
             if (data.topic_timer) {
-              const store = api.container.lookup('service:store');
-              if (store) {
-                try {
+              // Store in our cache first (most reliable)
+              timerDataCache.set(topicId, data.topic_timer);
+              
+              // Also try to update Discourse's store if available
+              try {
+                const store = api.container.lookup('service:store');
+                if (store && store.peekRecord) {
                   const topic = store.peekRecord('topic', topicId);
                   if (topic) {
                     topic.set('topic_timer', data.topic_timer);
-                    console.log(`Updated topic ${topicId} with timer data`); // Debug
+                    console.log(`Updated topic ${topicId} with timer data`);
                   }
-                } catch (e) {
-                  console.warn('Failed to update topic cache:', e);
                 }
+              } catch (e) {
+                // Store update failed, but we have our cache
               }
+              
               setTimeout(() => addTimerBadgesToTopicList(), 100);
             }
           }).catch(error => {
@@ -549,34 +554,49 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       
       console.log(`Processing topic ${topicId}...`);
       
-      // Method 1: Get data from topic list controller (most reliable)
+      // Method 1: Get data from discovery service (newer API)
       try {
-        const topicListController = api.container.lookup('controller:discovery/topics');
-        if (topicListController?.model?.topics) {
-          topic = topicListController.model.topics.find(t => t.id === topicId);
-          console.log(`Topic ${topicId} from controller:`, topic);
+        const discovery = api.container.lookup('service:discovery');
+        if (discovery?.model?.topics) {
+          topic = discovery.model.topics.find(t => t.id === topicId);
+          console.log(`Topic ${topicId} from discovery:`, topic);
           
           if (topic?.topic_timer) {
             timerData = topic.topic_timer;
-            console.log(`✓ Topic ${topicId} has timer data from controller:`, timerData);
+            console.log(`✓ Topic ${topicId} has timer data from discovery:`, timerData);
           }
         }
       } catch (e) {
-        console.warn('Failed to get topic from controller:', e);
+        // Fallback to deprecated controller
+        try {
+          const topicListController = api.container.lookup('controller:discovery/topics');
+          if (topicListController?.model?.topics) {
+            topic = topicListController.model.topics.find(t => t.id === topicId);
+            if (topic?.topic_timer) {
+              timerData = topic.topic_timer;
+              console.log(`✓ Topic ${topicId} has timer data from controller:`, timerData);
+            }
+          }
+        } catch (e2) {
+          console.warn('Failed to get topic from both discovery service and controller:', e2);
+        }
       }
       
-      // Method 2: Try Ember store
+      // Method 2: Try Ember store (updated API)
       if (!timerData) {
         try {
           const store = api.container.lookup('service:store');
-          const cachedTopic = store.peekRecord('topic', topicId);
-          if (cachedTopic?.topic_timer) {
-            timerData = cachedTopic.topic_timer;
-            topic = cachedTopic;
-            console.log(`✓ Topic ${topicId} has timer data from store:`, timerData);
+          // Try newer store API first
+          if (store.peekRecord) {
+            const cachedTopic = store.peekRecord('topic', topicId);
+            if (cachedTopic?.topic_timer) {
+              timerData = cachedTopic.topic_timer;
+              topic = cachedTopic;
+              console.log(`✓ Topic ${topicId} has timer data from store:`, timerData);
+            }
           }
         } catch (e) {
-          console.warn('Failed to get topic from store:', e);
+          console.warn('Store lookup not available in this Discourse version');
         }
       }
       
@@ -660,11 +680,29 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     setTimeout(() => {
       console.log('=== INITIAL PAGE LOAD DEBUG ===');
       
-      // Debug: Check what data is available
-      const topicListController = api.container.lookup('controller:discovery/topics');
-      if (topicListController?.model?.topics) {
-        console.log('Available topics from controller:', topicListController.model.topics.length);
-        topicListController.model.topics.slice(0, 3).forEach(topic => {
+      // Debug: Check what data is available - try discovery service first
+      let topics = null;
+      try {
+        const discovery = api.container.lookup('service:discovery');
+        if (discovery?.model?.topics) {
+          topics = discovery.model.topics;
+          console.log('Available topics from discovery service:', topics.length);
+        }
+      } catch (e) {
+        // Fallback to deprecated controller
+        try {
+          const topicListController = api.container.lookup('controller:discovery/topics');
+          if (topicListController?.model?.topics) {
+            topics = topicListController.model.topics;
+            console.log('Available topics from controller (deprecated):', topics.length);
+          }
+        } catch (e2) {
+          console.log('No topics found in either discovery service or controller');
+        }
+      }
+      
+      if (topics) {
+        topics.slice(0, 3).forEach(topic => {
           console.log(`Topic ${topic.id}:`, {
             title: topic.title,
             category_id: topic.category_id,
@@ -672,24 +710,11 @@ export default apiInitializer("topic-timer-to-top", (api) => {
             timer_data: topic.topic_timer
           });
         });
-      } else {
-        console.log('No topics found in controller');
       }
       
-      // Debug: Check store
-      const store = api.container.lookup('service:store');
-      if (store) {
-        const allTopics = store.peekAll('topic');
-        console.log('Topics in store:', allTopics.length);
-        allTopics.slice(0, 3).forEach(topic => {
-          console.log(`Store topic ${topic.id}:`, {
-            title: topic.title,
-            category_id: topic.category_id,
-            has_timer: !!topic.topic_timer,
-            timer_data: topic.topic_timer
-          });
-        });
-      }
+      // Since timer data is NOT in topic list response, go straight to aggressive preloading
+      console.log('Timer data is NOT included in topic list - using aggressive preloading approach');
+      console.log('This is expected behavior - topic lists do not include timer data by default');
       
       addTimerBadgesToTopicList();
     }, 500);
