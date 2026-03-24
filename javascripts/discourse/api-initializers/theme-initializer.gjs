@@ -25,7 +25,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
   // Helper to get parent category name
   const getParentCategoryName = (categoryId) => {
     if (!categoryId) return null;
-    const site = api.container.lookup("site:main");
+    const site = api.container.lookup("service:site");
     const category = site.categories.find(c => c.id === categoryId);
     if (!category?.parent_category_id) return null;
     const parent = site.categories.find(c => c.id === category.parent_category_id);
@@ -62,7 +62,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       const id = parseInt(match[2], 10);
       if (!slug || isNaN(id)) return;
       
-      const site = api.container.lookup("site:main");
+      const site = api.container.lookup("service:site");
       if (!site?.categories) return;
       
       const category = site.categories.find(cat => cat.id === id && cat.slug === slug);
