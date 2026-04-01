@@ -1,5 +1,6 @@
 import { apiInitializer } from "discourse/lib/api";
 import TopicTimerInfo from "discourse/components/topic-timer-info";
+import or from "truth-helpers/helpers/or";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
   const displayLocation = settings.display_location;
@@ -118,21 +119,23 @@ export default apiInitializer("topic-timer-to-top", (api) => {
 
   if (renderTopTimer) {
     api.renderInOutlet("topic-above-posts", <template>
-      {{#if @outletArgs.model.topic_timer}}
-        {{#if (isCategoryEnabled @outletArgs.model.category.id)}}
+      {{#if (isCategoryEnabled @outletArgs.model.category.id)}}
+        {{#if (or reminderText @outletArgs.model.topic_timer)}}
           <div class="custom-topic-timer-top">
             {{#if reminderText}}
               <h2 class="custom-topic-timer-top__reminder">{{reminderText}}</h2>
             {{/if}}
-            <TopicTimerInfo
-              @topicClosed={{@outletArgs.model.closed}}
-              @statusType={{@outletArgs.model.topic_timer.status_type}}
-              @statusUpdate={{@outletArgs.model.topic_status_update}}
-              @executeAt={{@outletArgs.model.topic_timer.execute_at}}
-              @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
-              @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
-              @categoryId={{@outletArgs.model.topic_timer.category_id}}
-            />
+            {{#if @outletArgs.model.topic_timer}}
+              <TopicTimerInfo
+                @topicClosed={{@outletArgs.model.closed}}
+                @statusType={{@outletArgs.model.topic_timer.status_type}}
+                @statusUpdate={{@outletArgs.model.topic_status_update}}
+                @executeAt={{@outletArgs.model.topic_timer.execute_at}}
+                @basedOnLastPost={{@outletArgs.model.topic_timer.based_on_last_post}}
+                @durationMinutes={{@outletArgs.model.topic_timer.duration_minutes}}
+                @categoryId={{@outletArgs.model.topic_timer.category_id}}
+              />
+            {{/if}}
           </div>
         {{/if}}
       {{/if}}
