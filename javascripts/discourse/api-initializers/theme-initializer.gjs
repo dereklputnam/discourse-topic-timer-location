@@ -121,15 +121,8 @@ export default apiInitializer("topic-timer-to-top", (api) => {
       {{#if @outletArgs.model.topic_timer}}
         {{#if (isCategoryEnabled @outletArgs.model.category.id)}}
           <div class="custom-topic-timer-top">
-            <p style="background:red;color:white;padding:4px;margin:0 0 4px;">
-              DEBUG — reminderText value: "{{reminderText}}"
-            </p>
             {{#if reminderText}}
-              <p class="custom-topic-timer-top__reminder"><strong>{{reminderText}}</strong></p>
-            {{else}}
-              <p style="background:orange;color:black;padding:4px;margin:0 0 4px;">
-                DEBUG — reminderText is falsy
-              </p>
+              <h1 class="custom-topic-timer-top__reminder">{{reminderText}}</h1>
             {{/if}}
             <TopicTimerInfo
               @topicClosed={{@outletArgs.model.closed}}
