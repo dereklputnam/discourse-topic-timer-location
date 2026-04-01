@@ -9,8 +9,15 @@ export default class TopicTimerTop extends Component {
   <template>
     {{#if @outletArgs.model.topic_timer}}
       <div class="custom-topic-timer-top">
+        <p style="background:red;color:white;padding:4px;margin:0 0 4px;">
+          DEBUG — reminderText value: "{{this.reminderText}}"
+        </p>
         {{#if this.reminderText}}
           <p class="custom-topic-timer-top__reminder"><strong>{{this.reminderText}}</strong></p>
+        {{else}}
+          <p style="background:orange;color:black;padding:4px;margin:0 0 4px;">
+            DEBUG — reminderText is falsy, skipping render
+          </p>
         {{/if}}
         <TopicTimerInfo
           @topicClosed={{@outletArgs.model.closed}}
