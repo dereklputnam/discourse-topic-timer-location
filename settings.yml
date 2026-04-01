@@ -1,3 +1,8 @@
+reminder_text:
+  type: string
+  default: "Don't forget, this isn't public yet!"
+  description: "Bold reminder text shown above the topic timer. Leave empty to hide."
+
 display_location:
   type: enum
   default: "Both"

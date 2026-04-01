@@ -3,7 +3,9 @@ import TopicTimerInfo from "discourse/components/topic-timer-info";
 <template>
   {{#if @outletArgs.model.topic_timer}}
     <div class="custom-topic-timer-top">
-      <p class="custom-topic-timer-top__reminder"><strong>Don't forget, this isn't public yet!</strong></p>
+      {{#if settings.reminder_text}}
+        <p class="custom-topic-timer-top__reminder"><strong>{{settings.reminder_text}}</strong></p>
+      {{/if}}
       <TopicTimerInfo
         @topicClosed={{@outletArgs.model.closed}}
         @statusType={{@outletArgs.model.topic_timer.status_type}}
