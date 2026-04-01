@@ -2,11 +2,16 @@
   background-color: var(--tertiary-low);
   padding: 1em 1.25em;
   border-left: 4px solid var(--primary-medium);
-  border-radius: 0.5em;
+  border-radius: 0;
   margin-bottom: 1.5em;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 0.75em;
+
+  &__reminder {
+    margin: 0;
+    color: var(--primary);
+  }
 
   .timer-icon {
     font-size: 1.2em;
