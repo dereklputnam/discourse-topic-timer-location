@@ -114,11 +114,23 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     console.warn("Failed to start MutationObserver:", error);
   }
 
+  const reminderText = settings.reminder_text;
+
   if (renderTopTimer) {
     api.renderInOutlet("topic-above-posts", <template>
       {{#if @outletArgs.model.topic_timer}}
         {{#if (isCategoryEnabled @outletArgs.model.category.id)}}
           <div class="custom-topic-timer-top">
+            <p style="background:red;color:white;padding:4px;margin:0 0 4px;">
+              DEBUG — reminderText value: "{{reminderText}}"
+            </p>
+            {{#if reminderText}}
+              <p class="custom-topic-timer-top__reminder"><strong>{{reminderText}}</strong></p>
+            {{else}}
+              <p style="background:orange;color:black;padding:4px;margin:0 0 4px;">
+                DEBUG — reminderText is falsy
+              </p>
+            {{/if}}
             <TopicTimerInfo
               @topicClosed={{@outletArgs.model.closed}}
               @statusType={{@outletArgs.model.topic_timer.status_type}}
