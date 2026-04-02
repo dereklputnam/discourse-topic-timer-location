@@ -135,6 +135,7 @@ export default apiInitializer("topic-timer-to-top", (api) => {
               <h2 class="custom-topic-timer-top__reminder">{{icon "key"}}{{reminderText}}</h2>
               <h2 class="custom-topic-timer-top__reminder">{{icon "ban"}}{{reminderText}}</h2>
               <h2 class="custom-topic-timer-top__reminder">{{icon "bullhorn"}}{{reminderText}}</h2>
+              <h2 class="custom-topic-timer-top__reminder">{{icon "bell-slash"}}{{reminderText}}</h2>
             {{/if}}
             {{#if @outletArgs.model.topic_timer}}
               <TopicTimerInfo
