@@ -6,24 +6,26 @@
   margin-bottom: 1.5em;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 0.35em;
 
   &__reminder {
     margin: 0;
-    font-weight: normal;
+    font-size: 1em;
+    font-weight: bold;
     color: var(--primary);
     display: flex;
     align-items: center;
     gap: 0.4em;
 
     .d-icon {
+      font-size: 1em;
       color: var(--tertiary);
       flex-shrink: 0;
     }
   }
 
   .timer-icon {
-    font-size: 1.2em;
+    font-size: 1em;
     margin-right: 0.4em;
   }
 
@@ -31,6 +33,8 @@
     margin: 0;
     font-size: 1em;
     color: var(--primary);
+    display: flex;
+    align-items: center;
   }
 }
 
