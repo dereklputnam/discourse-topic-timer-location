@@ -127,14 +127,14 @@ export default apiInitializer("topic-timer-to-top", (api) => {
               <h2 class="custom-topic-timer-top__reminder">{{icon "lock"}}{{reminderText}}</h2>
               <h2 class="custom-topic-timer-top__reminder">{{icon "eye-slash"}}{{reminderText}}</h2>
               <h2 class="custom-topic-timer-top__reminder">{{icon "triangle-exclamation"}}{{reminderText}}</h2>
-              <h2 class="custom-topic-timer-top__reminder">{{icon "shield"}}{{reminderText}}</h2>
               <h2 class="custom-topic-timer-top__reminder">{{icon "shield-halved"}}{{reminderText}}</h2>
               <h2 class="custom-topic-timer-top__reminder">{{icon "bell"}}{{reminderText}}</h2>
               <h2 class="custom-topic-timer-top__reminder">{{icon "circle-info"}}{{reminderText}}</h2>
               <h2 class="custom-topic-timer-top__reminder">{{icon "flag"}}{{reminderText}}</h2>
-              <h2 class="custom-topic-timer-top__reminder">{{icon "exclamation"}}{{reminderText}}</h2>
-              <h2 class="custom-topic-timer-top__reminder">{{icon "glasses"}}{{reminderText}}</h2>
-              <h2 class="custom-topic-timer-top__reminder">{{icon "house-lock"}}{{reminderText}}</h2>
+              <h2 class="custom-topic-timer-top__reminder">{{icon "user-lock"}}{{reminderText}}</h2>
+              <h2 class="custom-topic-timer-top__reminder">{{icon "key"}}{{reminderText}}</h2>
+              <h2 class="custom-topic-timer-top__reminder">{{icon "ban"}}{{reminderText}}</h2>
+              <h2 class="custom-topic-timer-top__reminder">{{icon "bullhorn"}}{{reminderText}}</h2>
             {{/if}}
             {{#if @outletArgs.model.topic_timer}}
               <TopicTimerInfo
