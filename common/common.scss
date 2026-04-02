@@ -1,7 +1,7 @@
 .custom-topic-timer-top {
   background-color: var(--tertiary-low);
   padding: 1em 1.25em;
-  border-left: 4px solid var(--primary-medium);
+  border-left: 4px solid var(--tertiary);
   border-radius: 0;
   margin-bottom: 1.5em;
   display: flex;
@@ -17,7 +17,7 @@
     gap: 0.4em;
 
     .d-icon {
-      color: var(--primary-medium);
+      color: var(--tertiary);
       flex-shrink: 0;
     }
   }
