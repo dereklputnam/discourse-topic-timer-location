@@ -124,9 +124,10 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         {{#if (or reminderText @outletArgs.model.topic_timer)}}
           <div class="custom-topic-timer-top">
             {{#if reminderText}}
-              <h2 class="custom-topic-timer-top__reminder">
-                {{icon "lock"}}{{reminderText}}
-              </h2>
+              <h2 class="custom-topic-timer-top__reminder">{{icon "lock"}}{{reminderText}}</h2>
+              <h2 class="custom-topic-timer-top__reminder">{{icon "eye-slash"}}{{reminderText}}</h2>
+              <h2 class="custom-topic-timer-top__reminder">{{icon "triangle-exclamation"}}{{reminderText}}</h2>
+              <h2 class="custom-topic-timer-top__reminder">{{icon "user-secret"}}{{reminderText}}</h2>
             {{/if}}
             {{#if @outletArgs.model.topic_timer}}
               <TopicTimerInfo
