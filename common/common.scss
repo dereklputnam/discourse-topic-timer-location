@@ -12,6 +12,14 @@
     margin: 0;
     font-weight: normal;
     color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+
+    .d-icon {
+      color: var(--primary-medium);
+      flex-shrink: 0;
+    }
   }
 
   .timer-icon {

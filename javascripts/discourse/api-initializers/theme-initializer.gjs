@@ -1,6 +1,7 @@
 import { apiInitializer } from "discourse/lib/api";
 import TopicTimerInfo from "discourse/components/topic-timer-info";
 import or from "truth-helpers/helpers/or";
+import icon from "discourse-common/helpers/d-icon";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
   const displayLocation = settings.display_location;
@@ -123,7 +124,9 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         {{#if (or reminderText @outletArgs.model.topic_timer)}}
           <div class="custom-topic-timer-top">
             {{#if reminderText}}
-              <h2 class="custom-topic-timer-top__reminder">{{reminderText}}</h2>
+              <h2 class="custom-topic-timer-top__reminder">
+                {{icon "lock"}}{{reminderText}}
+              </h2>
             {{/if}}
             {{#if @outletArgs.model.topic_timer}}
               <TopicTimerInfo
