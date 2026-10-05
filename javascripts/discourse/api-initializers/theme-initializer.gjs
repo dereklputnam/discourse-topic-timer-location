@@ -2,6 +2,7 @@ import { apiInitializer } from "discourse/lib/api";
 import TopicTimerInfo from "discourse/components/topic-timer-info";
 import or from "truth-helpers/helpers/or";
 import icon from "discourse-common/helpers/d-icon";
+import Category from "discourse/models/category";
 
 export default apiInitializer("topic-timer-to-top", (api) => {
   const displayLocation = settings.display_location;
@@ -23,6 +24,15 @@ export default apiInitializer("topic-timer-to-top", (api) => {
     
     return enabledCategories.includes(categoryId);
   };
+
+  api.modifyClass("component:topic-timer-info", (Superclass) =>
+    class extends Superclass {
+      additionalOpts() {
+        const category = this.categoryId && Category.findById(this.categoryId);
+        return category ? { categoryName: category.name } : {};
+      }
+    }
+  );
 
   const reminderText = settings.reminder_text;
 
