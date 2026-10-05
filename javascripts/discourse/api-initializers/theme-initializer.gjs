@@ -31,6 +31,13 @@ export default apiInitializer("topic-timer-to-top", (api) => {
         const category = this.categoryId && Category.findById(this.categoryId);
         return category ? { categoryName: category.name } : {};
       }
+
+      _noticeKey() {
+        const key = super._noticeKey();
+        return key === "topic.status_update_notice.auto_publish_to_category"
+          ? themePrefix("auto_publish_to_category")
+          : key;
+      }
     }
   );
 
